@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">智提醒</string>
+    <string name="notification_channel_name">提醒通知</string>
+    <string name="notification_channel_description">提醒通知渠道</string>
+    <string name="strong_reminder_channel_name">强提醒</string>
+    <string name="strong_reminder_channel_description">强提醒通知渠道</string>
+</resources>
