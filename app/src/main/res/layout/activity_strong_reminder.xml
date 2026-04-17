@@ -85,7 +85,7 @@
     <!-- 稍后提醒按钮 -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSnooze"
-        style="@style/Widget.Material3.Button.TextButton"
+        style="@style/Widget.Material3.Button.Text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="稍后提醒"
