@@ -204,7 +204,7 @@ class ReminderRepositoryImpl @Inject constructor(
         "MakeCall" -> ReminderAction.MakeCall(phoneNumber ?: "")
         "SendSms" -> ReminderAction.SendSms(phoneNumber ?: "", content ?: "")
         "SetAlarm" -> ReminderAction.SetAlarm(hour ?: 0, minute ?: 0, label ?: "", vibrationEnabled ?: true)
-        "ClearCache" -> ReminderAction.ClearCache()
+        "ClearCache" -> ReminderAction.ClearCache
         "UninstallApp" -> ReminderAction.UninstallApp(packageName ?: "")
         else -> ReminderAction.SendNotification("提醒", content ?: "")
     }
