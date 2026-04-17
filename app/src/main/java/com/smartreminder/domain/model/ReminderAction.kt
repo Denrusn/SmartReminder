@@ -55,7 +55,7 @@ sealed class ReminderAction {
     ) : ReminderAction()
     
     /** 清理缓存 */
-    data class ClearCache() : ReminderAction()
+    data object ClearCache : ReminderAction()
     
     /** 卸载应用 */
     data class UninstallApp(val packageName: String) : ReminderAction()

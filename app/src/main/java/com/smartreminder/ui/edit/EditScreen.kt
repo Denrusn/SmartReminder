@@ -65,6 +65,7 @@ class EditViewModel @Inject constructor(
     fun saveReminder() {
         val reminder = _reminder.value ?: return
         val state = _uiState.value
+        val triggerCondition = state.triggerCondition ?: return
         
         viewModelScope.launch {
             _uiState.value = state.copy(isSaving = true)
@@ -73,7 +74,7 @@ class EditViewModel @Inject constructor(
                 val updated = reminder.copy(
                     name = state.name,
                     description = state.description,
-                    triggerCondition = state.triggerCondition,
+                    triggerCondition = triggerCondition,
                     reminderMethod = state.reminderMethod,
                     updatedAt = System.currentTimeMillis()
                 )
