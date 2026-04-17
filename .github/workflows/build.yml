@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartReminder-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+      
+      - name: Create Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          cd app/build/outputs/apk/debug
+          echo "## 📦 SmartReminder APK Build Complete" > release-notes.md
+          echo "" >> release-notes.md
+          echo "**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> release-notes.md
+          echo "**Commit:** ${{ github.sha }}" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "Download the APK from the Artifacts section above." >> release-notes.md
+          
+          gh release create v${{ github.run_number }} \
+            --title "SmartReminder v${{ github.run_number }}" \
+            --notes-file release-notes.md \
+            app-debug.apk
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
