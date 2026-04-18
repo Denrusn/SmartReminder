@@ -1,5 +1,6 @@
 package com.smartreminder.ui.create
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -178,12 +179,11 @@ fun CreateScreen(
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = MaterialTheme.colorScheme.outline,
-                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
-                                    enabled = true,
-                                    selected = uiState.parsedReminderMethod == ReminderMethod.NOTIFICATION
-                                )
+                                border = BorderStroke(1.dp, if (uiState.parsedReminderMethod == ReminderMethod.NOTIFICATION) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                })
                             )
                             FilterChip(
                                 selected = uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER,
@@ -197,12 +197,11 @@ fun CreateScreen(
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = MaterialTheme.colorScheme.outline,
-                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
-                                    enabled = true,
-                                    selected = uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER
-                                )
+                                border = BorderStroke(1.dp, if (uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                })
                             )
                         }
                     }

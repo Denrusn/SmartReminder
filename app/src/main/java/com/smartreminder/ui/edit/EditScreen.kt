@@ -1,5 +1,6 @@
 package com.smartreminder.ui.edit
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -163,8 +164,7 @@ fun EditScreen(
     }
     val timePickerState = rememberTimePickerState(
         initialHour = initialHour,
-        initialMinute = initialMinute,
-        is24HourFormat = true
+        initialMinute = initialMinute
     )
 
     // TimePicker 对话框
@@ -304,12 +304,11 @@ fun EditScreen(
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = MaterialTheme.colorScheme.outline,
-                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
-                                    enabled = true,
-                                    selected = uiState.reminderMethod == ReminderMethod.NOTIFICATION
-                                )
+                                border = BorderStroke(1.dp, if (uiState.reminderMethod == ReminderMethod.NOTIFICATION) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                })
                             )
                             FilterChip(
                                 selected = uiState.reminderMethod == ReminderMethod.STRONG_REMINDER,
@@ -323,12 +322,11 @@ fun EditScreen(
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = MaterialTheme.colorScheme.outline,
-                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
-                                    enabled = true,
-                                    selected = uiState.reminderMethod == ReminderMethod.STRONG_REMINDER
-                                )
+                                border = BorderStroke(1.dp, if (uiState.reminderMethod == ReminderMethod.STRONG_REMINDER) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                })
                             )
                         }
                     }
