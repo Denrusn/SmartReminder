@@ -161,26 +161,18 @@ fun EditScreen(
         }
         else -> 0
     }
-    // 关键：uiState.triggerCondition 变化时重新初始化 TimePicker
-    val timePickerState = rememberTimePickerState(
-        initialHour = initialHour,
-        initialMinute = initialMinute
-    )
-
-    // 当 triggerCondition 变化时，同步更新 TimePicker 显示的时间
-    LaunchedEffect(currentCondition) {
-        timePickerState.hour = initialHour
-        timePickerState.minute = initialMinute
-    }
-
-    // TimePicker 对话框
+    // TimePicker 对话框（创建在 if 内，确保 currentCondition 已就绪）
     if (showTimePicker) {
+        val dialogTimePickerState = rememberTimePickerState(
+            initialHour = initialHour,
+            initialMinute = initialMinute
+        )
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.updateTriggerTime(timePickerState.hour, timePickerState.minute)
+                        viewModel.updateTriggerTime(dialogTimePickerState.hour, dialogTimePickerState.minute)
                         showTimePicker = false
                     }
                 ) {
@@ -196,7 +188,7 @@ fun EditScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("修改时间", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
-                    TimePicker(state = timePickerState)
+                    TimePicker(state = dialogTimePickerState)
                 }
             }
         )
