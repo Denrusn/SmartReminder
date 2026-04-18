@@ -1,8 +1,8 @@
 package com.smartreminder.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,6 +14,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smartreminder.domain.model.Reminder
 import com.smartreminder.domain.model.ReminderMethod
+import com.smartreminder.domain.model.TriggerCondition
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,7 +29,7 @@ fun HomeScreen(
 ) {
     val reminders by viewModel.reminders.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<Reminder?>(null) }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -97,7 +100,7 @@ fun HomeScreen(
             }
         }
     }
-    
+
     // 删除确认对话框
     showDeleteDialog?.let { reminder ->
         AlertDialog(
@@ -130,6 +133,9 @@ fun ReminderCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val isStrong = reminder.reminderMethod == ReminderMethod.STRONG_REMINDER ||
+            reminder.reminderMethod == ReminderMethod.STRONG_REMINDER_WITH_SETTINGS
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -139,102 +145,188 @@ fun ReminderCard(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (reminder.isEnabled) 2.dp else 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            // 第一行：图标 + 名称 + 开关
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(
-                        imageVector = if (reminder.reminderMethod == ReminderMethod.STRONG_REMINDER) {
+                        imageVector = if (isStrong) {
                             Icons.Default.NotificationsActive
                         } else {
                             Icons.Default.Notifications
                         },
                         contentDescription = null,
                         tint = if (reminder.isEnabled) {
-                            MaterialTheme.colorScheme.primary
+                            if (isStrong) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        },
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = reminder.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (reminder.isEnabled) {
+                            MaterialTheme.colorScheme.onSurface
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         }
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = reminder.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (reminder.isEnabled) {
-                                MaterialTheme.colorScheme.onSurface
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            }
-                        )
-                        // 提醒类型标签
-                        Text(
-                            text = if (reminder.reminderMethod == ReminderMethod.STRONG_REMINDER) "强提醒" else "普通提醒",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (reminder.isEnabled) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            }
-                        )
-                    }
                 }
-                
+
                 Switch(
                     checked = reminder.isEnabled,
                     onCheckedChange = { onToggleEnabled() }
                 )
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = reminder.triggerCondition.toDisplayString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 第二行：提醒类型标签 + 触发时间
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 提醒类型标签
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (isStrong) {
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                            },
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = if (isStrong) "强提醒" else "普通提醒",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isStrong) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        }
+                    )
+                }
+
+                // 触发时间
+                if (reminder.isEnabled) {
+                    Text(
+                        text = formatNextTrigger(reminder.triggerCondition),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // 第三行：描述（如果有）
             if (reminder.description.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = reminder.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    maxLines = 2
                 )
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 第四行：编辑/删除按钮
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                TextButton(
+                    onClick = onEdit,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("编辑")
+                    Text("编辑", style = MaterialTheme.typography.labelMedium)
                 }
-                TextButton(onClick = onDelete) {
+                TextButton(
+                    onClick = onDelete,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text("删除", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                 }
             }
+        }
+    }
+}
+
+/**
+ * 格式化下次触发时间，用于卡片显示
+ */
+private fun formatNextTrigger(condition: TriggerCondition): String {
+    val now = System.currentTimeMillis()
+    val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+
+    return when (condition) {
+        is TriggerCondition.Daily -> {
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, condition.hour)
+                set(Calendar.MINUTE, condition.minute)
+                set(Calendar.SECOND, 0)
+                if (timeInMillis <= now) add(Calendar.DAY_OF_YEAR, 1)
+            }
+            "每天 ${String.format("%02d:%02d", condition.hour, condition.minute)}"
+        }
+        is TriggerCondition.Weekly -> {
+            val days = listOf("周日", "周一", "周二", "周三", "周四", "周五", "周六")
+            "每周${days.getOrElse(condition.dayOfWeek - 1) { "周" }}${String.format("%02d:%02d", condition.hour, condition.minute)}"
+        }
+        is TriggerCondition.Monthly -> {
+            "每月${condition.dayOfMonth}日 ${String.format("%02d:%02d", condition.hour, condition.minute)}"
+        }
+        is TriggerCondition.Yearly -> {
+            val months = listOf("1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月")
+            "每年${months.getOrElse(condition.month - 1) { "${condition.month}月" }}${condition.day}日 ${String.format("%02d:%02d", condition.hour, condition.minute)}"
+        }
+        is TriggerCondition.Interval -> {
+            when (condition.unit) {
+                com.smartreminder.domain.model.IntervalUnit.MINUTES -> "每${condition.interval}分钟"
+                com.smartreminder.domain.model.IntervalUnit.HOURS -> "每${condition.interval}小时"
+                com.smartreminder.domain.model.IntervalUnit.DAYS -> "每${condition.interval}天"
+            }
+        }
+        is TriggerCondition.Once -> {
+            "一次性 ${dateFormat.format(Date(condition.timestamp))}"
+        }
+        is TriggerCondition.Cron -> {
+            "Cron: ${condition.expression}"
         }
     }
 }

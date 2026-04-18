@@ -1,6 +1,7 @@
 package com.smartreminder.domain.model
 
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -40,6 +41,93 @@ sealed class TriggerCondition {
             "一次性 ${sdf.format(Date(timestamp))}"
         }
         is Cron -> "自定义(${expression})"
+    }
+
+    /**
+     * 获取下一次触发的显示字符串
+     */
+    fun getNextTriggerDisplayString(): String {
+        val calendar = Calendar.getInstance()
+        val now = System.currentTimeMillis()
+
+        when (this) {
+            is Daily -> {
+                calendar.set(Calendar.HOUR_OF_DAY, hour)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                if (calendar.timeInMillis <= now) {
+                    calendar.add(Calendar.DAY_OF_YEAR, 1)
+                }
+            }
+            is Weekly -> {
+                calendar.set(Calendar.DAY_OF_WEEK, dayOfWeek)
+                calendar.set(Calendar.HOUR_OF_DAY, hour)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                if (calendar.timeInMillis <= now) {
+                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                }
+            }
+            is Monthly -> {
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                calendar.set(Calendar.HOUR_OF_DAY, hour)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                if (calendar.timeInMillis <= now) {
+                    calendar.add(Calendar.MONTH, 1)
+                }
+            }
+            is Yearly -> {
+                calendar.set(Calendar.MONTH, month - 1)
+                calendar.set(Calendar.DAY_OF_MONTH, day)
+                calendar.set(Calendar.HOUR_OF_DAY, hour)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                if (calendar.timeInMillis <= now) {
+                    calendar.add(Calendar.YEAR, 1)
+                }
+            }
+            is Interval -> {
+                val intervalMillis = when (unit) {
+                    IntervalUnit.MINUTES -> interval * 60 * 1000
+                    IntervalUnit.HOURS -> interval * 60 * 60 * 1000
+                    IntervalUnit.DAYS -> interval * 24 * 60 * 60 * 1000
+                }
+                return "约 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(now + intervalMillis)}"
+            }
+            is Once -> {
+                return SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(Date(timestamp))
+            }
+            is Cron -> {
+                calendar.add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+
+        val triggerCalendar = Calendar.getInstance().apply { timeInMillis = calendar.timeInMillis }
+        val today = Calendar.getInstance()
+
+        return when {
+            isSameDay(triggerCalendar, today) -> "今天 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(calendar)}"
+            isTomorrow(triggerCalendar, today) -> "明天 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(calendar)}"
+            else -> SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(calendar)
+        }
+    }
+
+    private fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
+    private fun isTomorrow(cal1: Calendar, cal2: Calendar): Boolean {
+        val tomorrow = Calendar.getInstance().apply {
+            timeInMillis = cal2.timeInMillis
+            add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return isSameDay(cal1, tomorrow)
     }
 
     private fun getDayOfWeekChinese(day: Int): String = when (day) {
