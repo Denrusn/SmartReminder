@@ -1,5 +1,7 @@
 package com.smartreminder.ai
 
+import com.smartreminder.domain.model.TriggerCondition
+import com.smartreminder.domain.model.IntervalUnit
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -438,9 +440,9 @@ class LocalNlpParser {
         for (pattern in patterns) {
             val match = pattern.find(text)
             if (match != null) {
-                val content = match.destructured.component1
+                val content = match.destructured.component1()
                     .trim()
-                    .replace(Regex("[的过在于是]", RegexOption { false }), "")
+                    .replace(Regex("[的过在于是]"), "")
                     .trim()
                 if (content.isNotEmpty()) {
                     return content
@@ -475,14 +477,14 @@ class LocalNlpParser {
                 if (days == 1) {
                     TriggerCondition.Daily(time.hour, time.minute)
                 } else {
-                    TriggerCondition.Interval(days.toLong(), com.smartreminder.domain.model.IntervalUnit.DAYS)
+                    TriggerCondition.Interval(days.toLong(), IntervalUnit.DAYS)
                 }
             }
             "hours" in repeat -> {
-                TriggerCondition.Interval(repeat["hours"] ?: 1L, com.smartreminder.domain.model.IntervalUnit.HOURS)
+                TriggerCondition.Interval(repeat["hours"] ?: 1L, IntervalUnit.HOURS)
             }
             "minutes" in repeat -> {
-                TriggerCondition.Interval(repeat["minutes"] ?: 1L, com.smartreminder.domain.model.IntervalUnit.MINUTES)
+                TriggerCondition.Interval(repeat["minutes"] ?: 1L, IntervalUnit.MINUTES)
             }
             else -> {
                 TriggerCondition.Once(time.atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli())
