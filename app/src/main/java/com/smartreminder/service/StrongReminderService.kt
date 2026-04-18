@@ -18,6 +18,7 @@ import com.smartreminder.domain.model.ExecutionLog
 import com.smartreminder.domain.model.ExecutionResult
 import com.smartreminder.domain.model.ReminderAction
 import com.smartreminder.domain.model.ReminderMethod
+import com.smartreminder.domain.model.TriggerCondition
 import com.smartreminder.domain.repository.ReminderRepository
 import com.smartreminder.ui.reminder.StrongReminderActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -66,11 +67,21 @@ class StrongReminderService : Service() {
             when (reminder.reminderMethod) {
                 ReminderMethod.NOTIFICATION -> {
                     showNotification(reminder.name, reminder.description)
+                    // 一次性提醒执行后删除
+                    if (reminder.triggerCondition is TriggerCondition.Once) {
+                        reminderScheduler.cancel(reminder.id)
+                        reminderRepository.deleteReminder(reminder.id)
+                    }
                     stopSelf()
                 }
-                ReminderMethod.STRONG_REMINDER, 
+                ReminderMethod.STRONG_REMINDER,
                 ReminderMethod.STRONG_REMINDER_WITH_SETTINGS -> {
                     showStrongReminder(reminder.name, reminder.description)
+                    // 一次性提醒执行后删除（用户确认强提醒后删除）
+                    if (reminder.triggerCondition is TriggerCondition.Once) {
+                        reminderScheduler.cancel(reminder.id)
+                        reminderRepository.deleteReminder(reminder.id)
+                    }
                     stopSelf()
                 }
             }

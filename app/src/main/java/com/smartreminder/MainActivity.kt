@@ -1,5 +1,6 @@
 package com.smartreminder
 
+import android.app.AlarmManager
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
@@ -45,8 +46,11 @@ class MainActivity : ComponentActivity() {
     // 0=未检查/未授权, 1=已授权
     private var overlayGranted by mutableStateOf(0)
     private var batteryGranted by mutableStateOf(0)
+    private var exactAlarmGranted by mutableStateOf(0)
     // 自启动无法可靠检测，默认0，用户手动确认
     private var autoStartGranted by mutableStateOf(0)
+
+    private val alarmManager by lazy { getSystemService(ALARM_SERVICE) as AlarmManager }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,12 +66,20 @@ class MainActivity : ComponentActivity() {
     private fun checkPermissions() {
         overlayGranted = if (Settings.canDrawOverlays(this)) 1 else 0
         batteryGranted = if (isIgnoringBatteryOptimizations()) 1 else 0
-        // autoStartGranted 保持用户上次的操作结果，不重复弹窗
+        exactAlarmGranted = if (canScheduleExactAlarms()) 1 else 0
 
         if (overlayGranted == 1 && batteryGranted == 1 && autoStartGranted == 1) {
             showMainContent()
         } else {
             showPermissionGuide()
+        }
+    }
+
+    private fun canScheduleExactAlarms(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
         }
     }
 
@@ -166,6 +178,7 @@ class MainActivity : ComponentActivity() {
                     PermissionGuideScreen(
                         overlayGranted = overlayGranted,
                         batteryGranted = batteryGranted,
+                        exactAlarmGranted = exactAlarmGranted,
                         autoStartGranted = autoStartGranted,
                         onRequestOverlay = {
                             val intent = Intent(
@@ -181,13 +194,18 @@ class MainActivity : ComponentActivity() {
                                 startActivity(intent)
                             }
                         },
+                        onRequestExactAlarm = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                startActivity(intent)
+                            }
+                        },
                         onRequestAutoStart = {
                             getAutoStartIntent()?.let {
                                 try { startActivity(it) } catch (e: Exception) { }
                             }
-                            // 自启动设置页无法检测，用户自行确认后点击"已授权"
+                            // 自启动设置页无法检测，用户自行确认后标记完成
                             autoStartGranted = 1
-                            // 重新检查是否全部完成
                             if (overlayGranted == 1 && batteryGranted == 1) {
                                 showMainContent()
                             }
@@ -206,9 +224,11 @@ class MainActivity : ComponentActivity() {
 fun PermissionGuideScreen(
     overlayGranted: Int,
     batteryGranted: Int,
+    exactAlarmGranted: Int,
     autoStartGranted: Int,
     onRequestOverlay: () -> Unit,
     onRequestBattery: () -> Unit,
+    onRequestExactAlarm: () -> Unit,
     onRequestAutoStart: () -> Unit,
     onContinue: () -> Unit
 ) {
@@ -258,7 +278,18 @@ fun PermissionGuideScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 3. 自启动管理
+        // 3. 精确闹钟权限
+        PermissionItem(
+            title = "精确闹钟权限",
+            description = "定时精准触发提醒，修改时间后必须重新授权",
+            granted = exactAlarmGranted == 1,
+            onClick = onRequestExactAlarm,
+            buttonText = if (exactAlarmGranted == 1) "✓ 已授权" else "去授权"
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 4. 自启动管理
         PermissionItem(
             title = "允许自启动",
             description = "开机后自动启动应用，确保提醒准时触发",
@@ -269,7 +300,7 @@ fun PermissionGuideScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        val allGranted = overlayGranted == 1 && batteryGranted == 1 && autoStartGranted == 1
+        val allGranted = overlayGranted == 1 && batteryGranted == 1 && exactAlarmGranted == 1 && autoStartGranted == 1
 
         Button(
             onClick = onContinue,

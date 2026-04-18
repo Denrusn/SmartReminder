@@ -161,10 +161,17 @@ fun EditScreen(
         }
         else -> 0
     }
+    // 关键：uiState.triggerCondition 变化时重新初始化 TimePicker
     val timePickerState = rememberTimePickerState(
         initialHour = initialHour,
         initialMinute = initialMinute
     )
+
+    // 当 triggerCondition 变化时，同步更新 TimePicker 显示的时间
+    LaunchedEffect(currentCondition) {
+        timePickerState.hour = initialHour
+        timePickerState.minute = initialMinute
+    }
 
     // TimePicker 对话框
     if (showTimePicker) {

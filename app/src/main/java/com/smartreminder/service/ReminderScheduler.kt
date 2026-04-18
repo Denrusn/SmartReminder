@@ -34,7 +34,10 @@ class ReminderScheduler @Inject constructor(
         )
         
         val triggerTime = calculateNextTriggerTime(condition)
-        
+
+        // 时间已过（Once类型编辑到过去时间），不调度
+        if (triggerTime == -1L) return
+
         when (condition) {
             is TriggerCondition.Once -> {
                 // 一次性提醒，使用单次Alarm
@@ -154,19 +157,22 @@ class ReminderScheduler @Inject constructor(
                 return System.currentTimeMillis() + intervalMillis
             }
             is TriggerCondition.Once -> {
-                return condition.timestamp
+                val ts = condition.timestamp
+                // 如果时间已过，返回-1表示不调度
+                return if (ts > System.currentTimeMillis()) ts else -1L
             }
             is TriggerCondition.Cron -> {
                 // 简化处理：使用默认时间
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
             }
         }
-        
+
+        val triggerTime = calendar.timeInMillis
         // 如果时间已过，加一天（用于每日重复）
-        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+        if (triggerTime <= System.currentTimeMillis()) {
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
-        
+
         return calendar.timeInMillis
     }
     
