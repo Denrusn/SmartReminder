@@ -1,13 +1,11 @@
 package com.smartreminder.service
 
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.smartreminder.domain.repository.ReminderRepository
-import com.smartreminder.service.ReminderScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,23 +27,8 @@ class AlarmReceiver : BroadcastReceiver() {
         val reminderId = intent.getLongExtra(EXTRA_REMINDER_ID, -1)
         if (reminderId == -1L) return
 
-        // 【关键修复】在启动服务前先重新调度下次触发
-        // setExactAndAllowWhileIdle 不是 repeating，需要手动重调度
-        // 使用 goAsync() 防止 ANR，让重调度在 BroadcastReceiver 返回前完成
-        val pendingResult = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val reminder = reminderRepository.getReminderById(reminderId)
-                if (reminder != null && reminder.isEnabled) {
-                    // 重新调度下次（Once 会在 schedule() 里检测到 -1L 自动跳过）
-                    reminderScheduler.schedule(reminderId, reminder.triggerCondition)
-                }
-            } finally {
-                pendingResult.finish()
-            }
-        }
-
-        // 启动强提醒服务
+        // 启动前台服务处理提醒
+        // 重调度逻辑在 StrongReminderService 中执行（确保数据库操作完成后再重调度）
         val serviceIntent = Intent(context, StrongReminderService::class.java).apply {
             putExtra(EXTRA_REMINDER_ID, reminderId)
         }

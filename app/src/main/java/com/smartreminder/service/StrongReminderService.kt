@@ -24,7 +24,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -40,12 +39,11 @@ class StrongReminderService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID_FOREGROUND = 1
-        private const val NOTIFICATION_ID_REMINDER = 200000 // 与reminderId错开，避免覆盖
+        private const val NOTIFICATION_ID_REMINDER = 200000
     }
 
     override fun onCreate() {
         super.onCreate()
-        // 必须先调用 startForeground，否则ANR或被杀死
         val notification = createForegroundNotification()
         startForeground(NOTIFICATION_ID_FOREGROUND, notification)
     }
@@ -58,7 +56,6 @@ class StrongReminderService : Service() {
             return START_NOT_STICKY
         }
 
-        // 在协程中处理提醒逻辑
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val reminder = reminderRepository.getReminderById(reminderId)
@@ -67,7 +64,7 @@ class StrongReminderService : Service() {
                     return@launch
                 }
 
-                // 插入执行日志（先于提醒处理，确保记录）
+                // 插入执行日志
                 reminderRepository.insertLog(
                     ExecutionLog(
                         reminderId = reminderId,
@@ -80,35 +77,30 @@ class StrongReminderService : Service() {
                 when (reminder.reminderMethod) {
                     ReminderMethod.NOTIFICATION -> {
                         showNotification(reminder.name, reminder.description)
+                        // Once 取消调度（不删除，以便保留执行历史）
                         if (reminder.triggerCondition is TriggerCondition.Once) {
                             reminderScheduler.cancel(reminder.id)
                         } else {
-                            // 重复提醒需要重新调度下次触发
+                            // 重新调度下次
                             reminderScheduler.schedule(reminder.id, reminder.triggerCondition)
                         }
                     }
                     ReminderMethod.STRONG_REMINDER,
                     ReminderMethod.STRONG_REMINDER_WITH_SETTINGS -> {
-                        // 强提醒Activity会自己停止前台服务
                         showStrongReminder(reminder.name, reminder.description)
+                        // Once 取消调度
                         if (reminder.triggerCondition is TriggerCondition.Once) {
                             reminderScheduler.cancel(reminder.id)
                         } else {
-                            // 重复提醒需要重新调度下次触发
+                            // 重新调度下次
                             reminderScheduler.schedule(reminder.id, reminder.triggerCondition)
                         }
-                        // Activity启动后前台服务可以停止
-                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        // 强提醒Activity会接管震动和声音
                     }
                 }
-
-                // 等待Activity启动后再停止（给Activity启动时间）
-                kotlinx.coroutines.delay(500)
-                stopSelf()
-
             } catch (e: Exception) {
                 e.printStackTrace()
-                // 即使出错也停止服务
+            } finally {
                 stopSelf()
             }
         }
@@ -155,13 +147,9 @@ class StrongReminderService : Service() {
     }
 
     private fun showStrongReminder(title: String, content: String) {
-        // 震动
         vibrate()
-
-        // 播放声音
         playSound()
 
-        // 启动强提醒Activity（它会接管震动和声音）
         val intent = Intent(this, StrongReminderActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
