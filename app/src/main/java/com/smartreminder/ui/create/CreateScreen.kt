@@ -1,6 +1,5 @@
 package com.smartreminder.ui.create
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -178,12 +177,7 @@ fun CreateScreen(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                ),
-                                border = BorderStroke(1.dp, if (uiState.parsedReminderMethod == ReminderMethod.NOTIFICATION) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outline
-                                })
+                                )
                             )
                             FilterChip(
                                 selected = uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER,
@@ -196,12 +190,7 @@ fun CreateScreen(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                ),
-                                border = BorderStroke(1.dp, if (uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outline
-                                })
+                                )
                             )
                         }
                     }
