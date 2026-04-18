@@ -89,7 +89,8 @@
             android:name=".service.StrongReminderService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.FOREGROUND_SERVICE" />
 
     </application>
 

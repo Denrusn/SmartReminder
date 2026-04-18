@@ -1,15 +1,20 @@
 package com.smartreminder
 
+import android.Manifest
 import android.app.AlarmManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,11 +36,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.smartreminder.ui.SmartReminderNavHost
 import com.smartreminder.ui.theme.SmartReminderTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,10 +52,18 @@ class MainActivity : ComponentActivity() {
     private var overlayGranted by mutableStateOf(0)
     private var batteryGranted by mutableStateOf(0)
     private var exactAlarmGranted by mutableStateOf(0)
-    // 自启动无法可靠检测，默认0，用户手动确认
+    private var notificationGranted by mutableStateOf(0)
     private var autoStartGranted by mutableStateOf(0)
 
     private val alarmManager by lazy { getSystemService(ALARM_SERVICE) as AlarmManager }
+
+    // POST_NOTIFICATIONS 权限请求
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        notificationGranted = if (isGranted) 1 else 0
+        refreshAndShow()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +72,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 用户从设置页返回，重新检查所有权限
         checkPermissions()
     }
 
@@ -68,7 +80,19 @@ class MainActivity : ComponentActivity() {
         batteryGranted = if (isIgnoringBatteryOptimizations()) 1 else 0
         exactAlarmGranted = if (canScheduleExactAlarms()) 1 else 0
 
-        if (overlayGranted == 1 && batteryGranted == 1 && autoStartGranted == 1) {
+        // 检查通知权限（Android 13+）
+        notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) 1 else 0
+        } else {
+            1 // Android 13以下不需要此权限
+        }
+
+        refreshAndShow()
+    }
+
+    private fun refreshAndShow() {
+        if (overlayGranted == 1 && batteryGranted == 1 && notificationGranted == 1) {
             showMainContent()
         } else {
             showPermissionGuide()
@@ -179,6 +203,7 @@ class MainActivity : ComponentActivity() {
                         overlayGranted = overlayGranted,
                         batteryGranted = batteryGranted,
                         exactAlarmGranted = exactAlarmGranted,
+                        notificationGranted = notificationGranted,
                         autoStartGranted = autoStartGranted,
                         onRequestOverlay = {
                             val intent = Intent(
@@ -200,18 +225,20 @@ class MainActivity : ComponentActivity() {
                                 startActivity(intent)
                             }
                         },
+                        onRequestNotification = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
                         onRequestAutoStart = {
                             getAutoStartIntent()?.let {
                                 try { startActivity(it) } catch (e: Exception) { }
                             }
-                            // 自启动设置页无法检测，用户自行确认后标记完成
                             autoStartGranted = 1
-                            if (overlayGranted == 1 && batteryGranted == 1) {
-                                showMainContent()
-                            }
+                            refreshAndShow()
                         },
                         onContinue = {
-                            showMainContent()
+                            refreshAndShow()
                         }
                     )
                 }
@@ -225,10 +252,12 @@ fun PermissionGuideScreen(
     overlayGranted: Int,
     batteryGranted: Int,
     exactAlarmGranted: Int,
+    notificationGranted: Int,
     autoStartGranted: Int,
     onRequestOverlay: () -> Unit,
     onRequestBattery: () -> Unit,
     onRequestExactAlarm: () -> Unit,
+    onRequestNotification: () -> Unit,
     onRequestAutoStart: () -> Unit,
     onContinue: () -> Unit
 ) {
@@ -249,7 +278,7 @@ fun PermissionGuideScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "以下权限可确保智提醒在后台稳定运行，不被系统杀掉",
+            text = "以下权限可确保阿智提醒在后台稳定运行，不被系统杀掉",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -278,7 +307,18 @@ fun PermissionGuideScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 3. 精确闹钟权限
+        // 3. 通知权限
+        PermissionItem(
+            title = "通知权限",
+            description = "允许发送通知提醒，否则无法收到提醒通知",
+            granted = notificationGranted == 1,
+            onClick = onRequestNotification,
+            buttonText = if (notificationGranted == 1) "✓ 已授权" else "去授权"
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 4. 精确闹钟权限
         PermissionItem(
             title = "精确闹钟权限",
             description = "定时精准触发提醒，修改时间后必须重新授权",
@@ -289,7 +329,7 @@ fun PermissionGuideScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 4. 自启动管理
+        // 5. 自启动管理
         PermissionItem(
             title = "允许自启动",
             description = "开机后自动启动应用，确保提醒准时触发",
@@ -300,19 +340,19 @@ fun PermissionGuideScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        val allGranted = overlayGranted == 1 && batteryGranted == 1 && exactAlarmGranted == 1 && autoStartGranted == 1
+        val allCriticalGranted = overlayGranted == 1 && batteryGranted == 1 && notificationGranted == 1
 
         Button(
             onClick = onContinue,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = if (allGranted) "开始使用" else "继续（功能可能受限）",
+                text = if (allCriticalGranted) "开始使用" else "继续（功能可能受限）",
                 style = MaterialTheme.typography.bodyLarge
             )
         }
 
-        if (!allGranted) {
+        if (!allCriticalGranted) {
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(
                 onClick = onContinue,
