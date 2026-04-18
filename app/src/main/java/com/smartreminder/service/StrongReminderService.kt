@@ -82,7 +82,7 @@ class StrongReminderService : Service() {
                         showNotification(reminder.name, reminder.description)
                         if (reminder.triggerCondition is TriggerCondition.Once) {
                             reminderScheduler.cancel(reminder.id)
-                            reminderRepository.deleteReminder(reminder.id)
+                            // Once任务取消调度后保留记录（不删除），以便查看执行历史
                         }
                     }
                     ReminderMethod.STRONG_REMINDER,
@@ -91,7 +91,7 @@ class StrongReminderService : Service() {
                         showStrongReminder(reminder.name, reminder.description)
                         if (reminder.triggerCondition is TriggerCondition.Once) {
                             reminderScheduler.cancel(reminder.id)
-                            reminderRepository.deleteReminder(reminder.id)
+                            // Once任务取消调度后保留记录（不删除），以便查看执行历史
                         }
                         // Activity启动后前台服务可以停止
                         stopForeground(STOP_FOREGROUND_REMOVE)

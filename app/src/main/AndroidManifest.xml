@@ -57,7 +57,7 @@
         <activity
             android:name=".ui.reminder.StrongReminderActivity"
             android:exported="false"
-            android:launchMode="singleInstance"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"
