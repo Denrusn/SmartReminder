@@ -64,28 +64,26 @@ class ReminderScheduler @Inject constructor(
                 }
             }
             else -> {
-                // 重复提醒，使用重复Alarm
+                // 重复提醒，使用精确闹钟 + 手动计算下次触发时间
+                // Android 12+ setRepeating 已废弃，改用 setExactAndAllowWhileIdle
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     if (alarmManager.canScheduleExactAlarms()) {
-                        alarmManager.setRepeating(
+                        alarmManager.setExactAndAllowWhileIdle(
                             AlarmManager.RTC_WAKEUP,
                             triggerTime,
-                            getRepeatInterval(condition),
                             pendingIntent
                         )
                     } else {
-                        alarmManager.setRepeating(
+                        alarmManager.setAndAllowWhileIdle(
                             AlarmManager.RTC_WAKEUP,
                             triggerTime,
-                            getRepeatInterval(condition),
                             pendingIntent
                         )
                     }
                 } else {
-                    alarmManager.setRepeating(
+                    alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
                         triggerTime,
-                        getRepeatInterval(condition),
                         pendingIntent
                     )
                 }

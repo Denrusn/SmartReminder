@@ -24,7 +24,10 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
-        // 设备启动后等待系统就绪，避免数据库未准备好
+        // 使用 goAsync() 延长 BroadcastReceiver 的执行时间
+        val pendingResult = goAsync()
+
+        // 延迟等待系统就绪，避免数据库未准备好
         Handler(Looper.getMainLooper()).postDelayed({
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -34,6 +37,8 @@ class BootReceiver : BroadcastReceiver() {
                     }
                 } catch (e: Exception) {
                     // 忽略错误，重启后可能数据库还未准备好
+                } finally {
+                    pendingResult.finish()
                 }
             }
         }, BOOT_DELAY_MS)

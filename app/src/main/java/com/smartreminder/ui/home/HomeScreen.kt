@@ -166,16 +166,28 @@ fun ReminderCard(
                         }
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = reminder.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (reminder.isEnabled) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        }
-                    )
+                    Column {
+                        Text(
+                            text = reminder.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (reminder.isEnabled) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            }
+                        )
+                        // 提醒类型标签
+                        Text(
+                            text = if (reminder.reminderMethod == ReminderMethod.STRONG_REMINDER) "强提醒" else "普通提醒",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (reminder.isEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            }
+                        )
+                    }
                 }
                 
                 Switch(
