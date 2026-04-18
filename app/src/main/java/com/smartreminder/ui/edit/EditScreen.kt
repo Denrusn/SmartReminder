@@ -61,6 +61,26 @@ class EditViewModel @Inject constructor(
     fun updateReminderMethod(method: ReminderMethod) {
         _uiState.value = _uiState.value.copy(reminderMethod = method)
     }
+
+    fun updateTriggerTime(hour: Int, minute: Int) {
+        val current = _uiState.value.triggerCondition ?: return
+        val newCondition = when (current) {
+            is TriggerCondition.Daily -> current.copy(hour = hour, minute = minute)
+            is TriggerCondition.Weekly -> current.copy(hour = hour, minute = minute)
+            is TriggerCondition.Monthly -> current.copy(hour = hour, minute = minute)
+            is TriggerCondition.Yearly -> current.copy(hour = hour, minute = minute)
+            is TriggerCondition.Once -> {
+                val cal = java.util.Calendar.getInstance().apply {
+                    timeInMillis = current.timestamp
+                    set(java.util.Calendar.HOUR_OF_DAY, hour)
+                    set(java.util.Calendar.MINUTE, minute)
+                }
+                TriggerCondition.Once(cal.timeInMillis)
+            }
+            else -> current
+        }
+        _uiState.value = _uiState.value.copy(triggerCondition = newCondition)
+    }
     
     fun saveReminder() {
         val reminder = _reminder.value ?: return
@@ -102,7 +122,8 @@ data class EditUiState(
     val reminderMethod: ReminderMethod = ReminderMethod.NOTIFICATION,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
-    val saveError: String? = null
+    val saveError: String? = null,
+    val showTimePicker: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,17 +135,77 @@ fun EditScreen(
 ) {
     val reminder by viewModel.reminder.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-    
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    // TimePicker 状态
+    val currentCondition = uiState.triggerCondition
+    val initialHour = when (currentCondition) {
+        is TriggerCondition.Daily -> currentCondition.hour
+        is TriggerCondition.Weekly -> currentCondition.hour
+        is TriggerCondition.Monthly -> currentCondition.hour
+        is TriggerCondition.Yearly -> currentCondition.hour
+        is TriggerCondition.Once -> {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = currentCondition.timestamp }
+            cal.get(java.util.Calendar.HOUR_OF_DAY)
+        }
+        else -> 8
+    }
+    val initialMinute = when (currentCondition) {
+        is TriggerCondition.Daily -> currentCondition.minute
+        is TriggerCondition.Weekly -> currentCondition.minute
+        is TriggerCondition.Monthly -> currentCondition.minute
+        is TriggerCondition.Yearly -> currentCondition.minute
+        is TriggerCondition.Once -> {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = currentCondition.timestamp }
+            cal.get(java.util.Calendar.MINUTE)
+        }
+        else -> 0
+    }
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24HourFormat = true
+    )
+
+    // TimePicker 对话框
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.updateTriggerTime(timePickerState.hour, timePickerState.minute)
+                        showTimePicker = false
+                    }
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("取消")
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("修改时间", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TimePicker(state = timePickerState)
+                }
+            }
+        )
+    }
+
     LaunchedEffect(reminderId) {
         viewModel.loadReminder(reminderId)
     }
-    
+
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
             onNavigateBack()
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -161,9 +242,9 @@ fun EditScreen(
                     label = { Text("提醒名称") },
                     singleLine = true
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 OutlinedTextField(
                     value = uiState.description,
                     onValueChange = { viewModel.updateDescription(it) },
@@ -172,45 +253,89 @@ fun EditScreen(
                     minLines = 2,
                     maxLines = 4
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // 触发条件
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("触发条件", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            uiState.triggerCondition?.toDisplayString() ?: "",
-                            style = MaterialTheme.typography.bodyLarge
+
+                // 触发条件（可点击修改时间）
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showTimePicker = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("触发条件", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                uiState.triggerCondition?.toDisplayString() ?: "",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = "修改时间",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 // 提醒方式
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("提醒方式", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             FilterChip(
                                 selected = uiState.reminderMethod == ReminderMethod.NOTIFICATION,
                                 onClick = { viewModel.updateReminderMethod(ReminderMethod.NOTIFICATION) },
-                                label = { Text("普通通知") }
+                                label = { Text("普通通知") },
+                                leadingIcon = if (uiState.reminderMethod == ReminderMethod.NOTIFICATION) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    enabled = true,
+                                    selected = uiState.reminderMethod == ReminderMethod.NOTIFICATION
+                                )
                             )
                             FilterChip(
                                 selected = uiState.reminderMethod == ReminderMethod.STRONG_REMINDER,
                                 onClick = { viewModel.updateReminderMethod(ReminderMethod.STRONG_REMINDER) },
-                                label = { Text("强提醒") }
+                                label = { Text("强提醒") },
+                                leadingIcon = if (uiState.reminderMethod == ReminderMethod.STRONG_REMINDER) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    enabled = true,
+                                    selected = uiState.reminderMethod == ReminderMethod.STRONG_REMINDER
+                                )
                             )
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Button(
                     onClick = { viewModel.saveReminder() },
                     modifier = Modifier.fillMaxWidth(),
@@ -222,7 +347,7 @@ fun EditScreen(
                     }
                     Text("保存修改")
                 }
-                
+
                 uiState.saveError?.let { error ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

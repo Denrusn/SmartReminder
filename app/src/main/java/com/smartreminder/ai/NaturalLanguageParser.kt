@@ -5,6 +5,7 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,7 +69,20 @@ class NaturalLanguageParser @Inject constructor() {
             RepeatType.WEEKLY -> TriggerCondition.Weekly(parseDayOfWeek(text), hour, minute)
             RepeatType.MONTHLY -> TriggerCondition.Monthly(parseDayOfMonth(text), hour, minute)
             RepeatType.YEARLY -> TriggerCondition.Yearly(parseMonth(text), parseDayOfMonth(text), hour, minute)
-            RepeatType.ONCE -> TriggerCondition.Once(System.currentTimeMillis() + 86400000) // 明天同一时间
+            RepeatType.ONCE -> {
+                // 修复：使用解析出的 hour/minute 构建具体时间，而非硬编码
+                val calendar = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, hour)
+                    set(Calendar.MINUTE, minute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                // 如果时间已过，加一天
+                if (calendar.timeInMillis <= System.currentTimeMillis()) {
+                    calendar.add(Calendar.DAY_OF_YEAR, 1)
+                }
+                TriggerCondition.Once(calendar.timeInMillis)
+            }
             RepeatType.INTERVAL -> TriggerCondition.Interval(parseInterval(text), parseIntervalUnit(text))
         }
         
@@ -94,9 +108,12 @@ class NaturalLanguageParser @Inject constructor() {
         var minute = 0
         
         // 匹配 "8点", "8:00", "08:00", "早上8点", "下午2点" 等
+        // 修复：使用多个模式确保分钟数字被完整捕获
+        // 按优先级排序：精确匹配 "8:29" 格式优先，再匹配 "8点29分"
         val timePatterns = listOf(
             Regex("(\\d{1,2}):(\\d{2})"),  // 8:00 或 08:00
-            Regex("(?:早上|上午|早晨)?(\\d{1,2})点(?:(\\d{1,2})分)?")  // 8点, 8点30分
+            Regex("(\\d{1,2})点(\\d{1,2})分"),  // 8点29分（精确匹配两位数分钟）
+            Regex("(?:早上|上午|早晨|下午|晚上|午后)?(\\d{1,2})点(?:(\\d{1,2})分)?")  // 8点 / 8点30分
         )
         
         for (pattern in timePatterns) {

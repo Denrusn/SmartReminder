@@ -164,23 +164,45 @@ fun CreateScreen(
                         
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             FilterChip(
                                 selected = uiState.parsedReminderMethod == ReminderMethod.NOTIFICATION,
                                 onClick = { viewModel.updateReminderMethod(ReminderMethod.NOTIFICATION) },
                                 label = { Text("普通通知") },
                                 leadingIcon = if (uiState.parsedReminderMethod == ReminderMethod.NOTIFICATION) {
-                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    enabled = true,
+                                    selected = uiState.parsedReminderMethod == ReminderMethod.NOTIFICATION
+                                )
                             )
                             FilterChip(
                                 selected = uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER,
                                 onClick = { viewModel.updateReminderMethod(ReminderMethod.STRONG_REMINDER) },
                                 label = { Text("强提醒") },
                                 leadingIcon = if (uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER) {
-                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    borderColor = MaterialTheme.colorScheme.outline,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    enabled = true,
+                                    selected = uiState.parsedReminderMethod == ReminderMethod.STRONG_REMINDER
+                                )
                             )
                         }
                     }
