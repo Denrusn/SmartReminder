@@ -481,10 +481,10 @@ class LocalNlpParser {
                 }
             }
             "hours" in repeat -> {
-                TriggerCondition.Interval(repeat["hours"] ?: 1L, IntervalUnit.HOURS)
+                TriggerCondition.Interval(repeat["hours"]?.toLong() ?: 1L, IntervalUnit.HOURS)
             }
             "minutes" in repeat -> {
-                TriggerCondition.Interval(repeat["minutes"] ?: 1L, IntervalUnit.MINUTES)
+                TriggerCondition.Interval(repeat["minutes"]?.toLong() ?: 1L, IntervalUnit.MINUTES)
             }
             else -> {
                 TriggerCondition.Once(time.atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli())
