@@ -2,6 +2,8 @@ package com.smartreminder.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,9 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smartreminder.domain.model.Reminder
 import com.smartreminder.domain.model.ReminderMethod
-import com.smartreminder.domain.model.TriggerCondition
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -232,9 +231,9 @@ fun ReminderCard(
                 // 触发时间
                 if (reminder.isEnabled) {
                     Text(
-                        text = formatNextTrigger(reminder.triggerCondition),
+                        text = "下一次提醒: ${reminder.triggerCondition.getNextTriggerDisplayString()}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -283,50 +282,6 @@ fun ReminderCard(
                     Text("删除", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                 }
             }
-        }
-    }
-}
-
-/**
- * 格式化下次触发时间，用于卡片显示
- */
-private fun formatNextTrigger(condition: TriggerCondition): String {
-    val now = System.currentTimeMillis()
-    val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-
-    return when (condition) {
-        is TriggerCondition.Daily -> {
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, condition.hour)
-                set(Calendar.MINUTE, condition.minute)
-                set(Calendar.SECOND, 0)
-                if (timeInMillis <= now) add(Calendar.DAY_OF_YEAR, 1)
-            }
-            "每天 ${String.format("%02d:%02d", condition.hour, condition.minute)}"
-        }
-        is TriggerCondition.Weekly -> {
-            val days = listOf("周日", "周一", "周二", "周三", "周四", "周五", "周六")
-            "每周${days.getOrElse(condition.dayOfWeek - 1) { "周" }}${String.format("%02d:%02d", condition.hour, condition.minute)}"
-        }
-        is TriggerCondition.Monthly -> {
-            "每月${condition.dayOfMonth}日 ${String.format("%02d:%02d", condition.hour, condition.minute)}"
-        }
-        is TriggerCondition.Yearly -> {
-            val months = listOf("1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月")
-            "每年${months.getOrElse(condition.month - 1) { "${condition.month}月" }}${condition.day}日 ${String.format("%02d:%02d", condition.hour, condition.minute)}"
-        }
-        is TriggerCondition.Interval -> {
-            when (condition.unit) {
-                com.smartreminder.domain.model.IntervalUnit.MINUTES -> "每${condition.interval}分钟"
-                com.smartreminder.domain.model.IntervalUnit.HOURS -> "每${condition.interval}小时"
-                com.smartreminder.domain.model.IntervalUnit.DAYS -> "每${condition.interval}天"
-            }
-        }
-        is TriggerCondition.Once -> {
-            "一次性 ${dateFormat.format(Date(condition.timestamp))}"
-        }
-        is TriggerCondition.Cron -> {
-            "Cron: ${condition.expression}"
         }
     }
 }
