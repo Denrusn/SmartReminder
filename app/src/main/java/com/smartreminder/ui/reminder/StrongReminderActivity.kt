@@ -1,7 +1,6 @@
 package com.smartreminder.ui.reminder
 
 import android.annotation.SuppressLint
-import android.app.KeyguardManager
 import android.content.Context
 import android.graphics.Color
 import android.media.AudioAttributes
@@ -19,50 +18,57 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class StrongReminderActivity : AppCompatActivity() {
-    
+
     private lateinit var binding: ActivityStrongReminderBinding
-    
+
     private var pressStartTime = 0L
     private var isLongPress = false
     private val longPressDuration = 2000L // 2秒
-    
+
     private var vibrator: Vibrator? = null
     private var toneGenerator: ToneGenerator? = null
-    
+
+    // 用于取消长按检查的Runnable
+    private val longPressChecker = Runnable {
+        isLongPress = true
+        binding.progressIndicator.visibility = View.GONE
+        binding.tvConfirmHint.text = "✓ 确认成功"
+        binding.btnConfirm.setBackgroundColor(Color.parseColor("#4CAF50"))
+    }
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // 保持屏幕常亮
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        
+
         // 设置为全屏、锁屏可见
         setupFullScreen()
-        
+
         binding = ActivityStrongReminderBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
         // 获取传递的数据
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "提醒"
         val content = intent.getStringExtra(EXTRA_CONTENT) ?: ""
         val reminderId = intent.getLongExtra(EXTRA_REMINDER_ID, -1)
-        
+
         binding.tvTitle.text = title
         binding.tvContent.text = content
-        
+
         // 启动震动和声音
         startAlert()
-        
+
         // 设置按钮事件
         setupButton()
-        
+
         // 稍后提醒按钮
         binding.btnSnooze.setOnClickListener {
-            // 稍后5分钟再提醒
             snoozeReminder(reminderId, 5)
             finish()
         }
     }
-    
+
     @SuppressLint("ClickableViewAccessibility")
     private fun setupButton() {
         binding.btnConfirm.setOnTouchListener { _, event ->
@@ -70,12 +76,19 @@ class StrongReminderActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     pressStartTime = System.currentTimeMillis()
                     isLongPress = false
-                    // 开始倒计时
-                    startLongPressCheck()
+                    binding.tvConfirmHint.text = "长按2秒确认"
+                    binding.btnConfirm.setBackgroundColor(Color.parseColor("#FFFFFF"))
+                    binding.progressIndicator.visibility = View.VISIBLE
+                    binding.progressIndicator.progress = 0
+                    // 开始长按倒计时
+                    Handler(Looper.getMainLooper()).postDelayed(longPressChecker, longPressDuration)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     val pressDuration = System.currentTimeMillis() - pressStartTime
+                    // 取消长按检查的回调
+                    Handler(Looper.getMainLooper()).removeCallbacks(longPressChecker)
+
                     if (pressDuration >= longPressDuration && isLongPress) {
                         // 长按确认成功
                         stopAlert()
@@ -87,6 +100,7 @@ class StrongReminderActivity : AppCompatActivity() {
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    Handler(Looper.getMainLooper()).removeCallbacks(longPressChecker)
                     resetProgress()
                     true
                 }
@@ -94,31 +108,20 @@ class StrongReminderActivity : AppCompatActivity() {
             }
         }
     }
-    
-    private fun startLongPressCheck() {
-        // 使用Handler延迟检查是否长按
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (System.currentTimeMillis() - pressStartTime >= longPressDuration) {
-                isLongPress = true
-                // 更新进度条视觉效果
-                binding.progressIndicator.visibility = View.GONE
-                binding.tvConfirmHint.text = "✓ 确认成功"
-                binding.btnConfirm.setBackgroundColor(Color.parseColor("#4CAF50"))
-            }
-        }, longPressDuration)
-    }
-    
+
     private fun resetProgress() {
         isLongPress = false
         binding.progressIndicator.progress = 0
+        binding.progressIndicator.visibility = View.VISIBLE
         binding.tvConfirmHint.text = "长按2秒确认"
+        binding.btnConfirm.setBackgroundColor(Color.parseColor("#FFFFFF"))
     }
-    
+
     private fun startAlert() {
         // 震动
         val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
         vibrator = vibratorManager.defaultVibrator
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val pattern = longArrayOf(0, 500, 200, 500, 200, 500)
             val vibrationEffect = VibrationEffect.createWaveform(pattern, -1)
@@ -127,7 +130,7 @@ class StrongReminderActivity : AppCompatActivity() {
             @Suppress("DEPRECATION")
             vibrator?.vibrate(longArrayOf(0, 500, 200, 500, 200, 500), -1)
         }
-        
+
         // 播放提示音
         try {
             toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100)
@@ -135,7 +138,7 @@ class StrongReminderActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        
+
         // 循环播放提示音
         Handler(Looper.getMainLooper()).postDelayed(object : Runnable {
             override fun run() {
@@ -146,18 +149,17 @@ class StrongReminderActivity : AppCompatActivity() {
             }
         }, 2000)
     }
-    
+
     private fun stopAlert() {
         vibrator?.cancel()
         toneGenerator?.release()
         toneGenerator = null
     }
-    
+
     private fun snoozeReminder(reminderId: Long, minutes: Int) {
         // TODO: 实现稍后提醒功能
-        // 可以使用 WorkManager 延迟调度
     }
-    
+
     @Suppress("DEPRECATION")
     private fun setupFullScreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -175,23 +177,20 @@ class StrongReminderActivity : AppCompatActivity() {
                 or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             )
         }
-        
+
         // 锁屏可见
         window.addFlags(
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
             or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             or WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
         )
-        
-        // 设置背景透明，显示效果更好
-        window.setBackgroundDrawableResource(android.R.color.transparent)
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
         stopAlert()
     }
-    
+
     companion object {
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_CONTENT = "extra_content"
