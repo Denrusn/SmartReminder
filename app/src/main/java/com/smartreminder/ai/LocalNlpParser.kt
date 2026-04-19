@@ -405,7 +405,7 @@ class LocalNlpParser {
             setIndex(beginning)
             return 0
         }
-        if (consumeMonth()) {
+        if (consumeMonth() > 0) {
             if (year > 3000) {
                 throw ParseError("年份超出范围")
             }
@@ -415,7 +415,9 @@ class LocalNlpParser {
             timeFields["year"] = year
             return getIndex() - beginning
         }
-        return 0
+        // 即使没有月份，也设置年份
+        timeFields["year"] = year
+        return getIndex() - beginning
     }
 
     /**
@@ -437,7 +439,7 @@ class LocalNlpParser {
         if (month > 12) {
             throw ParseError("月份超出范围")
         }
-        if (consumeDay()) {
+        if (consumeDay() > 0) {
             timeFields["month"] = month
             return getIndex() - beginning
         }
@@ -888,14 +890,14 @@ class LocalNlpParser {
     /**
      * 消费一个词
      */
-    private fun consumeWord(vararg words: String): Int {
+    private fun consumeWord(vararg words: String): Boolean {
         for (word in words) {
             if (currentWord() == word) {
                 advance()
-                return 1
+                return true
             }
         }
-        return 0
+        return false
     }
 
     /**
@@ -904,7 +906,7 @@ class LocalNlpParser {
     private fun consumePhrase(vararg words: String): Int {
         val beginning = getIndex()
         for (word in words) {
-            if (consumeWord(word) == 0) {
+            if (!consumeWord(word)) {
                 setIndex(beginning)
                 return 0
             }
@@ -934,7 +936,7 @@ class LocalNlpParser {
         if (idx >= words.size) return ""
         // 跳过空白和虚词
         val word = words[idx].first
-        if (word.isWhitespace() || word in listOf("的", "。", "，", "'", "\"", "！", "？")) {
+        if (word.isBlank() || word in listOf("的", "。", "，", "'", "\"", "！", "？")) {
             idx++  // 直接跳过，不回退
             return currentWord()
         }
@@ -947,7 +949,7 @@ class LocalNlpParser {
     private fun currentTag(): String {
         if (idx >= words.size) return ""
         // 跳过空白
-        if (words[idx].first.isWhitespace() || words[idx].first in listOf("的",)) {
+        if (words[idx].first.isBlank() || words[idx].first in listOf("的",)) {
             words = words.toMutableList().apply { removeAt(idx) }
             return currentTag()
         }
