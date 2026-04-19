@@ -211,9 +211,15 @@ class LocalNlpParser {
 
             // 消费各种时间成分
             consumeRepeat()
-            consumeYearPeriod() || consumeMonthPeriod() || consumeDayPeriod()
-            consumeWeekdayPeriod() || consumeHourPeriod() || consumeMinutePeriod() || consumeSecondPeriod()
-            consumeYear() || consumeMonth() || consumeDay()
+            val consumed1 = consumeYearPeriod()
+            if (consumed1 == 0) consumeMonthPeriod()
+            if (consumed1 == 0) consumeDayPeriod()
+            val consumed2 = consumeWeekdayPeriod()
+            if (consumed2 == 0) consumeHourPeriod()
+            if (consumed2 == 0) consumeMinutePeriod()
+            if (consumed2 == 0) consumeSecondPeriod()
+            if (consumeYear() == 0) consumeMonth()
+            consumeDay()
             consumeHour()
 
             if (getIndex() != parseBeginning) {
@@ -345,19 +351,19 @@ class LocalNlpParser {
         consumeWord("个")
 
         // 每隔N年 + 每月
-        if (consumeWord("年") && consumeMonth()) {
+        if (consumeWord("年") && consumeMonth() > 0) {
             repeat[REPEAT_KEY_YEAR] = repeatCount
             return getIndex() - beginning
         }
         // 每隔N个月 + 每天
-        if (consumeWord("月") && consumeDay()) {
+        if (consumeWord("月") && consumeDay() > 0) {
             repeat[REPEAT_KEY_MONTH] = repeatCount
             return getIndex() - beginning
         }
         // 每隔N天
         if (consumeWord("天")) {
             repeat[REPEAT_KEY_DAY] = repeatCount
-            if (!consumeHour()) {
+            if (consumeHour() == 0) {
                 timeFields["hour"] = DEFAULT_HOUR
                 timeFields["minute"] = DEFAULT_MINUTE
             }
@@ -473,7 +479,7 @@ class LocalNlpParser {
         consumeWord(")", "）")
 
         // 设置默认时间
-        if (!consumeHour()) {
+        if (consumeHour() == 0) {
             timeFields["hour"] = DEFAULT_HOUR
             timeFields["minute"] = DEFAULT_MINUTE
         }
@@ -775,7 +781,7 @@ class LocalNlpParser {
             return 0
         }
 
-        if (!consumeHour()) {
+        if (consumeHour() == 0) {
             timeFields["hour"] = DEFAULT_HOUR
             timeFields["minute"] = DEFAULT_MINUTE
         }
@@ -898,6 +904,16 @@ class LocalNlpParser {
             }
         }
         return false
+    }
+
+    private fun consumeWordAsInt(vararg words: String): Int {
+        for (word in words) {
+            if (currentWord() == word) {
+                advance()
+                return 1
+            }
+        }
+        return 0
     }
 
     /**
