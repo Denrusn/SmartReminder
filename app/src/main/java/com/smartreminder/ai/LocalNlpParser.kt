@@ -51,7 +51,8 @@ class LocalNlpParser {
         val time: LocalDateTime,
         val repeat: Map<String, Int>,  // 如 {"days" to 1, "hours" to 2}
         val event: String,
-        val desc: String
+        val desc: String,
+        val weekday: Int? = null  // 解析出的周几（1-7，周一到周日）
     )
 
     class ParseError(message: String) : Exception(message)
@@ -76,7 +77,8 @@ class LocalNlpParser {
                 time = timeInfo.time,
                 repeat = timeInfo.repeat,
                 event = event,
-                desc = cleanText
+                desc = cleanText,
+                weekday = timeInfo.weekday
             )
         } catch (e: Exception) {
             return null
@@ -85,7 +87,8 @@ class LocalNlpParser {
 
     private data class TimeInfo(
         val time: LocalDateTime,
-        val repeat: Map<String, Int>
+        val repeat: Map<String, Int>,
+        val weekday: Int? = null  // 解析出的周几（1-7，周一到周日）
     )
 
     /**
@@ -162,7 +165,7 @@ class LocalNlpParser {
             currentTime = currentTime.plusDays(1)
         }
 
-        return TimeInfo(time = currentTime, repeat = repeat)
+        return TimeInfo(time = currentTime, repeat = repeat, weekday = weekday)
     }
 
     /**
@@ -469,7 +472,8 @@ class LocalNlpParser {
                 TriggerCondition.Monthly(time.dayOfMonth, time.hour, time.minute)
             }
             "weeks" in repeat -> {
-                val dayOfWeek = time.dayOfWeek.value
+                // 优先使用解析出的 weekday，否则使用当前时间的星期
+                val dayOfWeek = result.weekday ?: time.dayOfWeek.value
                 TriggerCondition.Weekly(dayOfWeek, time.hour, time.minute)
             }
             "days" in repeat -> {
