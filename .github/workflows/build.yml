@@ -35,21 +35,5 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       
-      - name: Create Release with APK
-        if: github.ref == 'refs/heads/main'
-        working-directory: app/build/outputs/apk/debug
-        run: |
-          echo "Build complete" > release-notes.md
-          gh release create "v1.${{ github.run_number }}" \
-            --title "SmartReminder v1.${{ github.run_number }}" \
-            --notes-file release-notes.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload APK to Release
-        if: github.ref == 'refs/heads/main'
-        working-directory: app/build/outputs/apk/debug
-        run: |
-          gh release upload "v1.${{ github.run_number }}" app-debug.apk --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Release创建暂时禁用（gh release create有问题）
+      # 每次构建后请从 Artifacts 下载 APK
