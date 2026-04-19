@@ -934,7 +934,7 @@ class LocalNlpParser {
         if (idx >= words.size) return ""
         // 跳过空白和虚词
         val word = words[idx].first
-        if (word.isspace() || word in listOf("的", "。", "，", "'", "\"", "！", "？")) {
+        if (word.isWhitespace() || word in listOf("的", "。", "，", "'", "\"", "！", "？")) {
             idx++  // 直接跳过，不回退
             return currentWord()
         }
@@ -947,7 +947,7 @@ class LocalNlpParser {
     private fun currentTag(): String {
         if (idx >= words.size) return ""
         // 跳过空白
-        if (words[idx].first.isspace() || words[idx].first in listOf("的",)) {
+        if (words[idx].first.isWhitespace() || words[idx].first in listOf("的",)) {
             words = words.toMutableList().apply { removeAt(idx) }
             return currentTag()
         }
