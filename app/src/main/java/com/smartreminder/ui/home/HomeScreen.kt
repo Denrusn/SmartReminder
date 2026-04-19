@@ -147,8 +147,8 @@ fun HomeScreen(
     if (permissionState is HomeViewModel.PermissionState.ExactAlarmNeeded) {
         AlertDialog(
             onDismissRequest = {
-                viewModel.clearPermissionState()
-                pendingToggleReminder = null
+                // 不要自动取消——点击外部或按返回只关闭对话框，不取消操作
+                // 用户可以在主界面重新触发开关操作
             },
             icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
             title = { Text("需要精确闹钟权限") },

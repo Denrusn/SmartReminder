@@ -139,75 +139,70 @@ class ReminderScheduler @Inject constructor(
      * 计算下次触发时间
      */
     private fun calculateNextTriggerTime(condition: TriggerCondition): Long {
-        val calendar = Calendar.getInstance()
+        val now = Calendar.getInstance()
 
         when (condition) {
             is TriggerCondition.Daily -> {
+                val calendar = now.clone() as Calendar
                 calendar.set(Calendar.HOUR_OF_DAY, condition.hour)
                 calendar.set(Calendar.MINUTE, condition.minute)
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
                 // 如果时间已过，明天再触发
-                if (calendar.timeInMillis <= System.currentTimeMillis()) {
+                if (calendar.timeInMillis <= now.timeInMillis) {
                     calendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
+                return calendar.timeInMillis
             }
             is TriggerCondition.Weekly -> {
-                val now = Calendar.getInstance()
-                val targetDay = condition.dayOfWeek
-                val targetHour = condition.hour
-                val targetMinute = condition.minute
-
-                // 设置为本周目标星期
-                calendar.set(Calendar.DAY_OF_WEEK, targetDay)
-                calendar.set(Calendar.HOUR_OF_DAY, targetHour)
-                calendar.set(Calendar.MINUTE, targetMinute)
+                val targetDay = condition.dayOfWeek.coerceIn(1, 7)
+                val calendar = now.clone() as Calendar
+                val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+                // Calendar.DAY_OF_WEEK: 1=周日, 2=周一, ..., 7=周六
+                // 我们用 1=周一, ..., 7=周日，所以需要转换
+                val currentWeekday = if (currentDayOfWeek == 1) 7 else currentDayOfWeek - 1
+                var daysToAdd = targetDay - currentWeekday
+                if (daysToAdd <= 0) daysToAdd += 7
+                calendar.add(Calendar.DAY_OF_YEAR, daysToAdd)
+                calendar.set(Calendar.HOUR_OF_DAY, condition.hour)
+                calendar.set(Calendar.MINUTE, condition.minute)
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
-
-                // 如果本周时间已过，跳到下周
-                if (calendar.timeInMillis <= now.timeInMillis) {
-                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                }
+                return calendar.timeInMillis
             }
             is TriggerCondition.Monthly -> {
-                val now = Calendar.getInstance()
-                val targetDay = condition.dayOfMonth
-                val targetHour = condition.hour
-                val targetMinute = condition.minute
-
+                val calendar = now.clone() as Calendar
+                val targetDay = condition.dayOfMonth.coerceIn(1, 31)
+                // 设置为目标日
                 calendar.set(Calendar.DAY_OF_MONTH, targetDay)
-                calendar.set(Calendar.HOUR_OF_DAY, targetHour)
-                calendar.set(Calendar.MINUTE, targetMinute)
+                calendar.set(Calendar.HOUR_OF_DAY, condition.hour)
+                calendar.set(Calendar.MINUTE, condition.minute)
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
-
-                // 如果本月时间已过，跳到下月
-                if (calendar.timeInMillis <= now.timeInMillis) {
+                // 如果本月该日已过或无效，跳到下月
+                if (calendar.get(Calendar.DAY_OF_MONTH) != targetDay || calendar.timeInMillis <= now.timeInMillis) {
                     calendar.add(Calendar.MONTH, 1)
+                    calendar.set(Calendar.DAY_OF_MONTH, targetDay.coerceAtMost(calendar.getActualMaximum(Calendar.DAY_OF_MONTH)))
                 }
+                return calendar.timeInMillis
             }
             is TriggerCondition.Yearly -> {
-                val now = Calendar.getInstance()
-                val targetMonth = condition.month - 1
-                val targetDay = condition.day
-                val targetHour = condition.hour
-                val targetMinute = condition.minute
-
+                val calendar = now.clone() as Calendar
+                val targetMonth = condition.month.coerceIn(1, 12) - 1
+                val targetDay = condition.day.coerceIn(1, 28) // 防止月底溢出
                 calendar.set(Calendar.MONTH, targetMonth)
                 calendar.set(Calendar.DAY_OF_MONTH, targetDay)
-                calendar.set(Calendar.HOUR_OF_DAY, targetHour)
-                calendar.set(Calendar.MINUTE, targetMinute)
+                calendar.set(Calendar.HOUR_OF_DAY, condition.hour)
+                calendar.set(Calendar.MINUTE, condition.minute)
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
-
                 // 如果今年时间已过，跳到明年
                 if (calendar.timeInMillis <= now.timeInMillis) {
                     calendar.add(Calendar.YEAR, 1)
                 }
+                return calendar.timeInMillis
             }
             is TriggerCondition.Interval -> {
-                // 下次触发时间 = 当前时间 + 间隔
                 val intervalMillis = when (condition.unit) {
                     com.smartreminder.domain.model.IntervalUnit.MINUTES -> condition.interval * 60 * 1000
                     com.smartreminder.domain.model.IntervalUnit.HOURS -> condition.interval * 60 * 60 * 1000
@@ -217,16 +212,14 @@ class ReminderScheduler @Inject constructor(
             }
             is TriggerCondition.Once -> {
                 val ts = condition.timestamp
-                // 如果时间已过，返回-1表示不调度
                 return if (ts > System.currentTimeMillis()) ts else -1L
             }
             is TriggerCondition.Cron -> {
-                // 简化处理：明天
+                val calendar = now.clone() as Calendar
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
+                return calendar.timeInMillis
             }
         }
-
-        return calendar.timeInMillis
     }
     
     /**

@@ -155,9 +155,11 @@ class LocalNlpParser {
             val currentDayOfWeek = currentTime.dayOfWeek.value
             var daysToAdd = weekday - currentDayOfWeek
             if (daysToAdd <= 0) daysToAdd += 7
-            if (repeat.isEmpty()) {
-                currentTime = currentTime.plusDays(daysToAdd.toLong())
+            // 如果是重复提醒（每周/每月等）且目标日是今天或已过，应跳到下周
+            if (repeat.isNotEmpty()) {
+                daysToAdd += 7
             }
+            currentTime = currentTime.plusDays(daysToAdd.toLong())
         }
 
         // 如果时间已过且是单次提醒，设置到明天

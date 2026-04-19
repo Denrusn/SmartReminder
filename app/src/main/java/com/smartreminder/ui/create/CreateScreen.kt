@@ -284,7 +284,9 @@ fun CreateScreen(
     if (permissionNeeded) {
         AlertDialog(
             onDismissRequest = {
-                viewModel.onPermissionDenied()
+                // 不要在 onDismissRequest 中调用 onPermissionDenied()
+                // 因为点击外部或按返回可能导致用户还未完成授权就被阻止
+                // 仅关闭对话框，用户可以再次点击保存重新触发
             },
             icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
             title = { Text("需要精确闹钟权限") },
