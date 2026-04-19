@@ -34,10 +34,26 @@ class CreateViewModel @Inject constructor(
 
     fun onPermissionGranted() {
         _permissionNeeded.value = false
+        // 权限授予后，重新尝试保存提醒
+        saveReminder()
     }
 
     fun onPermissionDenied() {
         _permissionNeeded.value = false
+        // 用户取消权限请求后，不再尝试保存（用户需要手动重新点击保存）
+    }
+
+    /**
+     * 从系统设置返回后调用，检查权限并重新尝试保存
+     */
+    fun retrySaveAfterPermissionCheck() {
+        _permissionNeeded.value = false
+        // 检查权限是否已授予
+        if (permissionHelper.canScheduleExactAlarms()) {
+            // 权限已授予，保存提醒
+            saveReminder()
+        }
+        // 如果权限仍未授予，_needed保持为false，用户需要手动重新点击保存
     }
     
     fun updateUserInput(input: String) {

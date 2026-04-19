@@ -1,5 +1,8 @@
 package com.smartreminder.ui.create
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -14,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smartreminder.domain.model.ReminderMethod
+import com.smartreminder.util.PermissionHelper
+import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,6 +30,14 @@ fun CreateScreen(
     val permissionNeeded by viewModel.permissionNeeded.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+
+    // 用于处理从设置返回后重新检查权限
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // 用户从设置返回后，重新尝试保存
+        viewModel.retrySaveAfterPermissionCheck()
+    }
 
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
@@ -282,9 +295,8 @@ fun CreateScreen(
                 TextButton(
                     onClick = {
                         viewModel.getExactAlarmSettingsIntent()?.let { intent ->
-                            context.startActivity(intent)
+                            settingsLauncher.launch(intent)
                         }
-                        viewModel.onPermissionDenied()
                     }
                 ) {
                     Text("前往设置")

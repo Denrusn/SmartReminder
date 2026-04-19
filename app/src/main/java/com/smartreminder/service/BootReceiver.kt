@@ -6,7 +6,6 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import com.smartreminder.domain.repository.ReminderRepository
-import com.smartreminder.util.PermissionHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,9 +21,6 @@ class BootReceiver : BroadcastReceiver() {
     @Inject
     lateinit var reminderScheduler: ReminderScheduler
 
-    @Inject
-    lateinit var permissionHelper: PermissionHelper
-
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
@@ -35,19 +31,18 @@ class BootReceiver : BroadcastReceiver() {
         Handler(Looper.getMainLooper()).postDelayed({
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    // Check exact alarm permission before scheduling
-                    if (!permissionHelper.canScheduleExactAlarms()) {
-                        // Permission not granted, skip scheduling
-                        pendingResult.finish()
-                        return@launch
-                    }
-
                     val reminders = reminderRepository.getEnabledReminders()
                     reminders.forEach { reminder ->
-                        reminderScheduler.schedule(reminder.id, reminder.triggerCondition)
+                        try {
+                            reminderScheduler.schedule(reminder.id, reminder.triggerCondition)
+                        } catch (e: Exception) {
+                            // 单个提醒调度失败不影响其他提醒
+                            e.printStackTrace()
+                        }
                     }
                 } catch (e: Exception) {
                     // 忽略错误，重启后可能数据库还未准备好
+                    e.printStackTrace()
                 } finally {
                     pendingResult.finish()
                 }
