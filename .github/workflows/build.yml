@@ -35,20 +35,17 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       
-      - name: Create Release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Create Release with APK
+        if: github.ref == 'refs/heads/main'
         run: |
           cd app/build/outputs/apk/debug
-          echo "## 📦 SmartReminder APK Build Complete" > release-notes.md
-          echo "" >> release-notes.md
-          echo "**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> release-notes.md
-          echo "**Commit:** ${{ github.sha }}" >> release-notes.md
-          echo "" >> release-notes.md
-          echo "Download the APK from the Artifacts section above." >> release-notes.md
-          
-          gh release create v${{ github.run_number }} \
-            --title "SmartReminder v${{ github.run_number }}" \
-            --notes-file release-notes.md \
-            app-debug.apk
+          body="## 📦 SmartReminder APK Build Complete\n\n**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n**Commit:** ${{ github.sha }}\n\nDownload app-debug.apk below."
+
+          gh release create "v1.${{ github.run_number }}" \
+            --title "SmartReminder v1.${{ github.run_number }}" \
+            --body "$body" \
+            --repo Denrusn/SmartReminder
+
+          gh release upload "v1.${{ github.run_number }}" app-debug.apk --repo Denrusn/SmartReminder --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
