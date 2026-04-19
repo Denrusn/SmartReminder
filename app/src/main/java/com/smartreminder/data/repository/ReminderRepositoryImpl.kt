@@ -89,37 +89,62 @@ class ReminderRepositoryImpl @Inject constructor(
     }
     
     // ============ Mapper ============
-    
+
     private fun ReminderEntity.toDomain(): Reminder {
-        val triggerCondition = when (triggerType) {
-            "daily" -> TriggerCondition.Daily(triggerHour ?: 0, triggerMinute ?: 0)
-            "weekly" -> TriggerCondition.Weekly(triggerDayOfWeek ?: 1, triggerHour ?: 0, triggerMinute ?: 0)
-            "monthly" -> TriggerCondition.Monthly(triggerDayOfMonth ?: 1, triggerHour ?: 0, triggerMinute ?: 0)
-            "yearly" -> TriggerCondition.Yearly(triggerMonth ?: 1, triggerDayOfMonth ?: 1, triggerHour ?: 0, triggerMinute ?: 0)
-            "interval" -> TriggerCondition.Interval(
-                triggerInterval ?: 1,
-                IntervalUnit.valueOf(triggerIntervalUnit ?: "DAYS")
-            )
-            "once" -> TriggerCondition.Once(triggerTimestamp ?: System.currentTimeMillis())
-            "cron" -> TriggerCondition.Cron(triggerCron ?: "")
-            else -> TriggerCondition.Daily(triggerHour ?: 0, triggerMinute ?: 0)
+        val triggerCondition: TriggerCondition = try {
+            when (triggerType) {
+                "daily" -> TriggerCondition.Daily(triggerHour ?: 0, triggerMinute ?: 0)
+                "weekly" -> {
+                    val dow = (triggerDayOfWeek ?: 1).coerceIn(1, 7)
+                    TriggerCondition.Weekly(dow, triggerHour ?: 0, triggerMinute ?: 0)
+                }
+                "monthly" -> {
+                    val dom = (triggerDayOfMonth ?: 1).coerceIn(1, 31)
+                    TriggerCondition.Monthly(dom, triggerHour ?: 0, triggerMinute ?: 0)
+                }
+                "yearly" -> {
+                    val m = (triggerMonth ?: 1).coerceIn(1, 12)
+                    val d = (triggerDayOfMonth ?: 1).coerceIn(1, 28)
+                    TriggerCondition.Yearly(m, d, triggerHour ?: 0, triggerMinute ?: 0)
+                }
+                "interval" -> {
+                    val unit = try {
+                        IntervalUnit.valueOf(triggerIntervalUnit ?: "DAYS")
+                    } catch (e: Exception) {
+                        IntervalUnit.DAYS
+                    }
+                    TriggerCondition.Interval(triggerInterval ?: 1, unit)
+                }
+                "once" -> TriggerCondition.Once(triggerTimestamp ?: System.currentTimeMillis())
+                "cron" -> TriggerCondition.Cron(triggerCron ?: "")
+                else -> TriggerCondition.Once(System.currentTimeMillis() + 86400000)
+            }
+        } catch (e: Exception) {
+            // 解析失败时使用一次性提醒作为安全默认值，防止 App 崩溃
+            TriggerCondition.Once(System.currentTimeMillis() + 86400000)
         }
-        
+
         val actions: List<ReminderAction> = try {
             val type = object : TypeToken<List<ReminderActionJson>>() {}.type
             val jsonActions: List<ReminderActionJson> = gson.fromJson(actionsJson, type)
-            jsonActions.map { it.toDomain() }
+            jsonActions.mapNotNull { it.toDomainOrNull() }
         } catch (e: Exception) {
             emptyList()
         }
-        
+
+        val reminderMethod: ReminderMethod = try {
+            ReminderMethod.valueOf(reminderMethod)
+        } catch (e: Exception) {
+            ReminderMethod.NOTIFICATION
+        }
+
         return Reminder(
             id = id,
             name = name,
             description = description,
             isEnabled = isEnabled,
             triggerCondition = triggerCondition,
-            reminderMethod = ReminderMethod.valueOf(reminderMethod),
+            reminderMethod = reminderMethod,
             actions = actions,
             createdAt = createdAt,
             updatedAt = updatedAt
@@ -189,24 +214,35 @@ class ReminderRepositoryImpl @Inject constructor(
         val label: String? = null
     )
     
-    private fun ReminderActionJson.toDomain(): ReminderAction = when (type) {
-        "SendNotification" -> ReminderAction.SendNotification(title ?: "", content ?: "")
-        "StrongReminder" -> ReminderAction.StrongReminder(
-            title ?: "",
-            content ?: "",
-            soundEnabled ?: true,
-            vibrationEnabled ?: true,
-            PopupType.valueOf(popupType ?: "FULL_SCREEN")
-        )
-        "ShowDialog" -> ReminderAction.ShowDialog(title ?: "", content ?: "")
-        "OpenUrl" -> ReminderAction.OpenUrl(url ?: "")
-        "LaunchApp" -> ReminderAction.LaunchApp(packageName ?: "")
-        "MakeCall" -> ReminderAction.MakeCall(phoneNumber ?: "")
-        "SendSms" -> ReminderAction.SendSms(phoneNumber ?: "", content ?: "")
-        "SetAlarm" -> ReminderAction.SetAlarm(hour ?: 0, minute ?: 0, label ?: "", vibrationEnabled ?: true)
-        "ClearCache" -> ReminderAction.ClearCache
-        "UninstallApp" -> ReminderAction.UninstallApp(packageName ?: "")
-        else -> ReminderAction.SendNotification("提醒", content ?: "")
+    private fun ReminderActionJson.toDomainOrNull(): ReminderAction? = try {
+        when (type) {
+            "SendNotification" -> ReminderAction.SendNotification(title ?: "", content ?: "")
+            "StrongReminder" -> {
+                val popupTypeEnum = try {
+                    PopupType.valueOf(popupType ?: "FULL_SCREEN")
+                } catch (e: Exception) {
+                    PopupType.FULL_SCREEN
+                }
+                ReminderAction.StrongReminder(
+                    title ?: "",
+                    content ?: "",
+                    soundEnabled ?: true,
+                    vibrationEnabled ?: true,
+                    popupTypeEnum
+                )
+            }
+            "ShowDialog" -> ReminderAction.ShowDialog(title ?: "", content ?: "")
+            "OpenUrl" -> ReminderAction.OpenUrl(url ?: "")
+            "LaunchApp" -> ReminderAction.LaunchApp(packageName ?: "")
+            "MakeCall" -> ReminderAction.MakeCall(phoneNumber ?: "")
+            "SendSms" -> ReminderAction.SendSms(phoneNumber ?: "", content ?: "")
+            "SetAlarm" -> ReminderAction.SetAlarm(hour ?: 0, minute ?: 0, label ?: "", vibrationEnabled ?: true)
+            "ClearCache" -> ReminderAction.ClearCache
+            "UninstallApp" -> ReminderAction.UninstallApp(packageName ?: "")
+            else -> ReminderAction.SendNotification("提醒", content ?: "")
+        }
+    } catch (e: Exception) {
+        null
     }
     
     private fun ReminderAction.toJson(): ReminderActionJson = when (this) {

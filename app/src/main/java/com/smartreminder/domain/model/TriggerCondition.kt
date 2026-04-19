@@ -47,11 +47,11 @@ sealed class TriggerCondition {
      * 获取下一次触发的显示字符串
      */
     fun getNextTriggerDisplayString(): String {
-        val calendar = Calendar.getInstance()
         val now = System.currentTimeMillis()
 
         when (this) {
             is Daily -> {
+                val calendar = Calendar.getInstance()
                 calendar.set(Calendar.HOUR_OF_DAY, hour)
                 calendar.set(Calendar.MINUTE, minute)
                 calendar.set(Calendar.SECOND, 0)
@@ -59,30 +59,42 @@ sealed class TriggerCondition {
                 if (calendar.timeInMillis <= now) {
                     calendar.add(Calendar.DAY_OF_YEAR, 1)
                 }
+                return formatRelativeDate(calendar)
             }
             is Weekly -> {
-                calendar.set(Calendar.DAY_OF_WEEK, dayOfWeek)
+                val calendar = Calendar.getInstance()
+                val targetDay = dayOfWeek.coerceIn(1, 7)
+                val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+                // Calendar.DAY_OF_WEEK: 1=周日, 2=周一, ..., 7=周六
+                // 我们用 1=周一, ..., 7=周日，所以需要转换
+                val currentWeekday = if (currentDayOfWeek == 1) 7 else currentDayOfWeek - 1
+                var daysToAdd = targetDay - currentWeekday
+                if (daysToAdd <= 0) daysToAdd += 7
+                calendar.add(Calendar.DAY_OF_YEAR, daysToAdd)
                 calendar.set(Calendar.HOUR_OF_DAY, hour)
                 calendar.set(Calendar.MINUTE, minute)
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
-                if (calendar.timeInMillis <= now) {
-                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                }
+                return formatRelativeDate(calendar)
             }
             is Monthly -> {
-                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                val calendar = Calendar.getInstance()
+                val targetDay = dayOfMonth.coerceIn(1, 31)
+                calendar.set(Calendar.DAY_OF_MONTH, targetDay)
                 calendar.set(Calendar.HOUR_OF_DAY, hour)
                 calendar.set(Calendar.MINUTE, minute)
                 calendar.set(Calendar.SECOND, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
-                if (calendar.timeInMillis <= now) {
+                if (calendar.get(Calendar.DAY_OF_MONTH) != targetDay || calendar.timeInMillis <= now) {
                     calendar.add(Calendar.MONTH, 1)
+                    calendar.set(Calendar.DAY_OF_MONTH, targetDay.coerceAtMost(calendar.getActualMaximum(Calendar.DAY_OF_MONTH)))
                 }
+                return formatRelativeDate(calendar)
             }
             is Yearly -> {
-                calendar.set(Calendar.MONTH, month - 1)
-                calendar.set(Calendar.DAY_OF_MONTH, day)
+                val calendar = Calendar.getInstance()
+                calendar.set(Calendar.MONTH, (month - 1).coerceIn(0, 11))
+                calendar.set(Calendar.DAY_OF_MONTH, day.coerceIn(1, 28))
                 calendar.set(Calendar.HOUR_OF_DAY, hour)
                 calendar.set(Calendar.MINUTE, minute)
                 calendar.set(Calendar.SECOND, 0)
@@ -90,6 +102,7 @@ sealed class TriggerCondition {
                 if (calendar.timeInMillis <= now) {
                     calendar.add(Calendar.YEAR, 1)
                 }
+                return formatRelativeDate(calendar)
             }
             is Interval -> {
                 val intervalMillis = when (unit) {
@@ -103,17 +116,22 @@ sealed class TriggerCondition {
                 return SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(Date(timestamp))
             }
             is Cron -> {
+                val calendar = Calendar.getInstance()
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
+                return formatRelativeDate(calendar)
             }
         }
+    }
 
-        val triggerCalendar = Calendar.getInstance().apply { timeInMillis = calendar.timeInMillis }
+    private fun formatRelativeDate(calendar: Calendar): String {
         val today = Calendar.getInstance()
+        val sdfTime = SimpleDateFormat("HH:mm", Locale.CHINA)
+        val sdfFull = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
 
         return when {
-            isSameDay(triggerCalendar, today) -> "今天 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(calendar)}"
-            isTomorrow(triggerCalendar, today) -> "明天 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(calendar)}"
-            else -> SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(calendar)
+            isSameDay(calendar, today) -> "今天 ${sdfTime.format(calendar)}"
+            isTomorrow(calendar, today) -> "明天 ${sdfTime.format(calendar)}"
+            else -> sdfFull.format(calendar)
         }
     }
 

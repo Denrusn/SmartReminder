@@ -7,7 +7,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +52,13 @@ class EditViewModel @Inject constructor(
 
     fun onPermissionDenied() {
         _permissionNeeded.value = false
+    }
+
+    fun retrySaveAfterPermissionCheck() {
+        _permissionNeeded.value = false
+        if (permissionHelper.canScheduleExactAlarms()) {
+            saveReminder()
+        }
     }
 
     fun loadReminder(reminderId: Long) {
@@ -175,6 +183,14 @@ fun EditScreen(
     val permissionNeeded by viewModel.permissionNeeded.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    // 用于处理从设置返回后重新检查权限
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // 用户从设置返回后，重新尝试保存
+        viewModel.retrySaveAfterPermissionCheck()
+    }
 
     // TimePicker 状态
     val currentCondition = uiState.triggerCondition
@@ -385,7 +401,7 @@ fun EditScreen(
     if (permissionNeeded) {
         AlertDialog(
             onDismissRequest = {
-                viewModel.onPermissionDenied()
+                // 不要在 onDismissRequest 中调用 onPermissionDenied()，防止用户还没完成授权就被阻止
             },
             icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
             title = { Text("需要精确闹钟权限") },
@@ -396,9 +412,8 @@ fun EditScreen(
                 TextButton(
                     onClick = {
                         viewModel.getExactAlarmSettingsIntent()?.let { intent ->
-                            context.startActivity(intent)
+                            settingsLauncher.launch(intent)
                         }
-                        viewModel.onPermissionDenied()
                     }
                 ) {
                     Text("前往设置")
