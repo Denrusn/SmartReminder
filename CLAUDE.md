@@ -55,6 +55,17 @@ Key implementation details:
 
 [NaturalLanguageParser.kt](app/src/main/java/com/smartreminder/ai/NaturalLanguageParser.kt) - calls MiniMax API to parse user input into `TriggerCondition` + `ReminderAction`
 
+When MiniMax API is unavailable, [LocalNlpParser.kt](app/src/main/java/com/smartreminder/ai/LocalNlpParser.kt) provides rule-based fallback parsing.
+
+## Services
+
+- [ReminderScheduler.kt](app/src/main/java/com/smartreminder/service/ReminderScheduler.kt) - schedules via AlarmManager
+- [AlarmReceiver.kt](app/src/main/java/com/smartreminder/service/AlarmReceiver.kt) - receives alarm broadcasts
+- [BootReceiver.kt](app/src/main/java/com/smartreminder/service/BootReceiver.kt) - reschedules reminders on device boot
+- [StrongReminderService.kt](app/src/main/java/com/smartreminder/service/StrongReminderService.kt) - manages strong reminder foreground service
+
+WorkManager is used for deferrable background tasks alongside AlarmManager for precise timing.
+
 ## Key Constraints
 
 - MinSdk 26, TargetSdk 34, JDK 17
