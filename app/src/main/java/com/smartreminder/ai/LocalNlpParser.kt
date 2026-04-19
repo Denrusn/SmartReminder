@@ -372,7 +372,7 @@ class LocalNlpParser {
         // 每N周/每周
         if (currentWord() == "周" || currentWord() == "星期") {
             if (consumeWord("周", "星期")) {
-                if (consumeWeekdayPeriod()) {
+                if (consumeWeekdayPeriod() > 0) {
                     repeat[REPEAT_KEY_WEEK] = repeatCount
                     return getIndex() - beginning
                 }
@@ -474,7 +474,7 @@ class LocalNlpParser {
         // 消费括号中的星期
         consumeWord("(", "（")
         if (consumeWord("周", "星期")) {
-            consumeWord("日", "天") || consumeDigit()
+            if (consumeWord("日", "天") == false) consumeDigit()
         }
         consumeWord(")", "）")
 
@@ -544,7 +544,7 @@ class LocalNlpParser {
             timeFields["hour"] = hour
         }
 
-        if (!consumeMinute()) {
+        if (consumeMinute() == 0) {
             timeFields["minute"] = DEFAULT_MINUTE
         }
         excludeTimeRange { consumeHour() }
@@ -701,7 +701,7 @@ class LocalNlpParser {
             if (consumeWord("天")) {
                 if (consumeWord("后", "以后")) {
                     days = tmp
-                } else if (consumeHourPeriod()) {
+                } else if (consumeHourPeriod() > 0) {
                     days = tmp
                     hasHour = true
                 }
@@ -722,12 +722,12 @@ class LocalNlpParser {
         // 消费括号中的星期
         consumeWord("(", "（")
         if (consumeWord("周", "星期")) {
-            consumeWord("日", "天") || consumeDigit()
+            if (consumeWord("日", "天") == false) consumeDigit()
         }
         consumeWord(")", "）")
 
         // 两天后下午三点
-        if (!hasHour && !consumeHour()) {
+        if (!hasHour && consumeHour() == 0) {
             timeFields["hour"] = hour
             timeFields["minute"] = Random.nextInt(4)  // 随机0-3分钟避免同时触发
         }
@@ -804,7 +804,7 @@ class LocalNlpParser {
                     timeDeltaFields["minutes"] = 30
                 }
             } else if (consumeWord("小时", "钟头")) {
-                if (consumeWord("后", "以后") || consumeMinutePeriod()) {
+                if (consumeWord("后", "以后") || consumeMinutePeriod() > 0) {
                     timeDeltaFields["hours"] = tmp
                 }
             }
