@@ -39,13 +39,19 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           cd app/build/outputs/apk/debug
-          notes="## SmartReminder APK Build Complete\n\n**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n**Commit:** ${{ github.sha }}\n\nDownload app-debug.apk below."
+          echo -e "## SmartReminder APK Build Complete\n\n**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n**Commit:** ${{ github.sha }}\n\nDownload app-debug.apk below." > release-notes.md
 
           gh release create "v1.${{ github.run_number }}" \
             --title "SmartReminder v1.${{ github.run_number }}" \
-            --notes "$notes" \
+            --notes-file release-notes.md \
             --repo Denrusn/SmartReminder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload APK to Release
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd app/build/outputs/apk/debug
           gh release upload "v1.${{ github.run_number }}" app-debug.apk --repo Denrusn/SmartReminder --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
