@@ -34,7 +34,7 @@ class LocalNlpParser {
         )
 
         private val WEEKDAY_MAP = mapOf(
-            "周日" to 7, "周日" to 7, "星期天" to 7, "星期日" to 7,
+            "周日" to 7, "星期天" to 7, "星期日" to 7,
             "周一" to 1, "星期一" to 1,
             "周二" to 2, "星期二" to 2,
             "周三" to 3, "星期三" to 3,

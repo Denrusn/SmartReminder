@@ -1,5 +1,6 @@
 package com.smartreminder.ui.edit
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +18,7 @@ import androidx.lifecycle.viewModelScope
 import com.smartreminder.domain.model.*
 import com.smartreminder.domain.repository.ReminderRepository
 import com.smartreminder.service.ReminderScheduler
+import com.smartreminder.util.PermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,15 +28,31 @@ import javax.inject.Inject
 @HiltViewModel
 class EditViewModel @Inject constructor(
     private val reminderRepository: ReminderRepository,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val permissionHelper: PermissionHelper
 ) : ViewModel() {
-    
+
     private val _reminder = MutableStateFlow<Reminder?>(null)
     val reminder: StateFlow<Reminder?> = _reminder
-    
+
     private val _uiState = MutableStateFlow(EditUiState())
     val uiState: StateFlow<EditUiState> = _uiState
-    
+
+    private val _permissionNeeded = MutableStateFlow(false)
+    val permissionNeeded: StateFlow<Boolean> = _permissionNeeded
+
+    fun getExactAlarmSettingsIntent(): Intent? {
+        return permissionHelper.getExactAlarmSettingsIntent()
+    }
+
+    fun onPermissionGranted() {
+        _permissionNeeded.value = false
+    }
+
+    fun onPermissionDenied() {
+        _permissionNeeded.value = false
+    }
+
     fun loadReminder(reminderId: Long) {
         viewModelScope.launch {
             val r = reminderRepository.getReminderById(reminderId)
@@ -86,27 +104,46 @@ class EditViewModel @Inject constructor(
         val reminder = _reminder.value ?: return
         val state = _uiState.value
         val triggerCondition = state.triggerCondition ?: return
-        
+
+        // Check exact alarm permission before scheduling
+        if (permissionHelper.needsExactAlarmPermission()) {
+            _permissionNeeded.value = true
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = state.copy(isSaving = true)
-            
+
             try {
+                val action = when (state.reminderMethod) {
+                    ReminderMethod.NOTIFICATION -> ReminderAction.SendNotification(
+                        title = state.name,
+                        content = state.description
+                    )
+                    ReminderMethod.STRONG_REMINDER,
+                    ReminderMethod.STRONG_REMINDER_WITH_SETTINGS -> ReminderAction.StrongReminder(
+                        title = state.name,
+                        content = state.description
+                    )
+                }
+
                 val updated = reminder.copy(
                     name = state.name,
                     description = state.description,
                     triggerCondition = triggerCondition,
                     reminderMethod = state.reminderMethod,
+                    actions = listOf(action),
                     updatedAt = System.currentTimeMillis()
                 )
-                
+
                 reminderRepository.updateReminder(updated)
-                
+
                 // 重新调度
                 reminderScheduler.cancel(reminder.id)
                 if (updated.isEnabled) {
                     reminderScheduler.schedule(updated.id, updated.triggerCondition)
                 }
-                
+
                 _uiState.value = state.copy(isSaving = false, saveSuccess = true)
             } catch (e: Exception) {
                 _uiState.value = state.copy(isSaving = false, saveError = e.message)
@@ -135,7 +172,9 @@ fun EditScreen(
 ) {
     val reminder by viewModel.reminder.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val permissionNeeded by viewModel.permissionNeeded.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // TimePicker 状态
     val currentCondition = uiState.triggerCondition
@@ -340,5 +379,40 @@ fun EditScreen(
                 }
             }
         }
+    }
+
+    // 精确闹钟权限请求对话框
+    if (permissionNeeded) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.onPermissionDenied()
+            },
+            icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
+            title = { Text("需要精确闹钟权限") },
+            text = {
+                Text("精确闹钟权限可确保提醒在准确的时间触发。\n\n请前往系统设置开启精确闹钟权限，否则提醒可能会延迟触发。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.getExactAlarmSettingsIntent()?.let { intent ->
+                            context.startActivity(intent)
+                        }
+                        viewModel.onPermissionDenied()
+                    }
+                ) {
+                    Text("前往设置")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onPermissionDenied()
+                    }
+                ) {
+                    Text("稍后")
+                }
+            }
+        )
     }
 }

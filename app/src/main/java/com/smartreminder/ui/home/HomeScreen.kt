@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,7 +28,25 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val reminders by viewModel.reminders.collectAsState()
+    val permissionState by viewModel.permissionState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<Reminder?>(null) }
+    var pendingToggleReminder by remember { mutableStateOf<Reminder?>(null) }
+    val context = LocalContext.current
+
+    // Handle permission state changes
+    LaunchedEffect(permissionState) {
+        when (permissionState) {
+            is HomeViewModel.PermissionState.ExactAlarmNeeded -> {
+                // Dialog will be shown below
+            }
+            is HomeViewModel.PermissionState.Error -> {
+                // Error is shown in Snackbar
+            }
+            is HomeViewModel.PermissionState.None -> {
+                // Nothing to do
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -122,6 +141,52 @@ fun HomeScreen(
                 }
             }
         )
+    }
+
+    // 精确闹钟权限请求对话框
+    if (permissionState is HomeViewModel.PermissionState.ExactAlarmNeeded) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.clearPermissionState()
+                pendingToggleReminder = null
+            },
+            icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
+            title = { Text("需要精确闹钟权限") },
+            text = {
+                Text("精确闹钟权限可确保提醒在准确的时间触发。\n\n请前往系统设置开启精确闹钟权限，否则提醒可能会延迟触发。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.getExactAlarmSettingsIntent()?.let { intent ->
+                            context.startActivity(intent)
+                        }
+                        viewModel.clearPermissionState()
+                        pendingToggleReminder = null
+                    }
+                ) {
+                    Text("前往设置")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearPermissionState()
+                        pendingToggleReminder = null
+                    }
+                ) {
+                    Text("稍后")
+                }
+            }
+        )
+    }
+
+    // 权限错误提示
+    (permissionState as? HomeViewModel.PermissionState.Error)?.let { error ->
+        LaunchedEffect(error) {
+            // Error handling via snackbar could be added here
+            viewModel.clearPermissionState()
+        }
     }
 }
 

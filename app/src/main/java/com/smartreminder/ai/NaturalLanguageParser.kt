@@ -83,7 +83,7 @@ class NaturalLanguageParser @Inject constructor() {
         val repeatType = parseRepeatType(text)
 
         // 解析动作类型
-        val actionType = if (text.contains("强提醒") || text.contains("强提醒")) {
+        val actionType = if (text.contains("强提醒")) {
             ActionType.STRONG_REMINDER
         } else {
             ActionType.NOTIFICATION
@@ -159,9 +159,9 @@ class NaturalLanguageParser @Inject constructor() {
     private fun parseRepeatType(text: String): RepeatType {
         return when {
             text.contains("每天") || text.contains("每日") -> RepeatType.DAILY
-            text.contains("每周") || text.contains("每周") -> RepeatType.WEEKLY
-            text.contains("每月") || text.contains("每月") -> RepeatType.MONTHLY
-            text.contains("每年") || text.contains("每年") -> RepeatType.YEARLY
+            text.contains("每周") -> RepeatType.WEEKLY
+            text.contains("每月") -> RepeatType.MONTHLY
+            text.contains("每年") -> RepeatType.YEARLY
             text.contains("工作日") -> RepeatType.WEEKLY
             text.contains("每间隔") || text.contains("每隔") -> RepeatType.INTERVAL
             else -> RepeatType.DAILY

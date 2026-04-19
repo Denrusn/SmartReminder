@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,14 +22,16 @@ fun CreateScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val permissionNeeded by viewModel.permissionNeeded.collectAsState()
     val scrollState = rememberScrollState()
-    
+    val context = LocalContext.current
+
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
             onNavigateBack()
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -262,5 +265,40 @@ fun CreateScreen(
                 }
             }
         }
+    }
+
+    // 精确闹钟权限请求对话框
+    if (permissionNeeded) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.onPermissionDenied()
+            },
+            icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
+            title = { Text("需要精确闹钟权限") },
+            text = {
+                Text("精确闹钟权限可确保提醒在准确的时间触发。\n\n请前往系统设置开启精确闹钟权限，否则提醒可能会延迟触发。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.getExactAlarmSettingsIntent()?.let { intent ->
+                            context.startActivity(intent)
+                        }
+                        viewModel.onPermissionDenied()
+                    }
+                ) {
+                    Text("前往设置")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onPermissionDenied()
+                    }
+                ) {
+                    Text("稍后")
+                }
+            }
+        )
     }
 }

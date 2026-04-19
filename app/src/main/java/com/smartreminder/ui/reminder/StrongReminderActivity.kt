@@ -14,12 +14,21 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import com.smartreminder.databinding.ActivityStrongReminderBinding
+import com.smartreminder.domain.model.TriggerCondition
+import com.smartreminder.service.ReminderScheduler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class StrongReminderActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityStrongReminderBinding
+
+    @Inject
+    lateinit var reminderScheduler: ReminderScheduler
 
     private var pressStartTime = 0L
     private var isLongPress = false
@@ -157,7 +166,12 @@ class StrongReminderActivity : AppCompatActivity() {
     }
 
     private fun snoozeReminder(reminderId: Long, minutes: Int) {
-        // TODO: 实现稍后提醒功能
+        // 取消当前闹钟
+        reminderScheduler.cancel(reminderId)
+        // 调度稍后提醒（5分钟后）
+        val snoozeTime = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        val snoozeCondition = TriggerCondition.Once(snoozeTime)
+        reminderScheduler.schedule(reminderId, snoozeCondition)
     }
 
     @Suppress("DEPRECATION")

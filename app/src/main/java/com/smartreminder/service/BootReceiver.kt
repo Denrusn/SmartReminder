@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import com.smartreminder.domain.repository.ReminderRepository
+import com.smartreminder.util.PermissionHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,9 @@ class BootReceiver : BroadcastReceiver() {
     @Inject
     lateinit var reminderScheduler: ReminderScheduler
 
+    @Inject
+    lateinit var permissionHelper: PermissionHelper
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
@@ -31,6 +35,13 @@ class BootReceiver : BroadcastReceiver() {
         Handler(Looper.getMainLooper()).postDelayed({
             CoroutineScope(Dispatchers.IO).launch {
                 try {
+                    // Check exact alarm permission before scheduling
+                    if (!permissionHelper.canScheduleExactAlarms()) {
+                        // Permission not granted, skip scheduling
+                        pendingResult.finish()
+                        return@launch
+                    }
+
                     val reminders = reminderRepository.getEnabledReminders()
                     reminders.forEach { reminder ->
                         reminderScheduler.schedule(reminder.id, reminder.triggerCondition)
