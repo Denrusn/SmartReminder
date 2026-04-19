@@ -39,11 +39,11 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           cd app/build/outputs/apk/debug
-          body="## 📦 SmartReminder APK Build Complete\n\n**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n**Commit:** ${{ github.sha }}\n\nDownload app-debug.apk below."
+          notes="## SmartReminder APK Build Complete\n\n**Build Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')\n**Commit:** ${{ github.sha }}\n\nDownload app-debug.apk below."
 
           gh release create "v1.${{ github.run_number }}" \
             --title "SmartReminder v1.${{ github.run_number }}" \
-            --body "$body" \
+            --notes "$notes" \
             --repo Denrusn/SmartReminder
 
           gh release upload "v1.${{ github.run_number }}" app-debug.apk --repo Denrusn/SmartReminder --clobber
