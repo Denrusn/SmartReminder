@@ -24,9 +24,8 @@ class NaturalLanguageParser @Inject constructor() {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    // MiniMax API配置 - 需要用户配置自己的API Key
+    // MiniMax API配置 - API Key 通过运行时传入，不存储在代码中
     private val baseUrl = "https://api.minimax.chat/v1"
-    // private val apiKey = "YOUR_API_KEY" // TODO: 从配置获取
 
     /**
      * 解析用户输入的自然语言

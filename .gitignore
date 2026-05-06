@@ -27,3 +27,29 @@ replay_pid*
 
 # Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
 .kotlin/
+
+# Android local config
+local.properties
+
+# Signing keystores
+*.jks
+*.keystore
+*.pem
+*.key
+
+# Environment variables
+.env
+.env.*
+
+# Firebase config
+google-services.json
+
+# Build output
+**/build/
+app/release/
+
+# Debug APK output
+*.apk
+
+# Memory profiler
+*.hprof
